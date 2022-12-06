@@ -1,0 +1,5 @@
+<library path="lib/libMrsUavPixhawkApi">
+  <class name="mrs_uav_pixhawk_api/MrsUavPixhawkApi" type="mrs_uav_pixhawk_api::HwApi" base_class_type="mrs_uav_hw_api::MrsUavHwApi">
+    <description>Pixhawk API module for the MRS UAV System</description>
+  </class>
+</library>
