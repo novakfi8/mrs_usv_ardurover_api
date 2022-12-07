@@ -7,9 +7,9 @@ find_package(catkin REQUIRED COMPONENTS
   mrs_msgs
   nav_msgs
   sensor_msgs
-  std_srvs
   nodelet
   mrs_lib
+  mrs_uav_hw_api
   )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -22,7 +22,7 @@ set(LIBRARIES
   )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp nodelet mrs_msgs sensor_msgs mrs_lib std_srvs mavros_msgs
+  CATKIN_DEPENDS roscpp nodelet mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api
   DEPENDS mavros_msgs
   LIBRARIES ${LIBRARIES}
   )
@@ -44,6 +44,7 @@ add_dependencies(MrsPixhawkPlugin
 
 target_link_libraries(MrsPixhawkPlugin
   ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
   )
 
 
@@ -60,10 +61,6 @@ install(TARGETS ${LIBRARIES}
 install(DIRECTORY config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   )
-
-# install(DIRECTORY include/
-#   DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-#   )
 
 install(DIRECTORY ./
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
