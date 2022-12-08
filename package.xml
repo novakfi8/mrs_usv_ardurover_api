@@ -15,13 +15,11 @@
   <depend>cmake_modules</depend>
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
-  <depend>nodelet</depend>
   <depend>mrs_msgs</depend>
   <depend>std_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>mrs_lib</depend>
-  <depend>dynamic_reconfigure</depend>
   <depend>mavros_msgs</depend>
   <depend>mrs_uav_hw_api</depend>
 

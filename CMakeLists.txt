@@ -7,7 +7,6 @@ find_package(catkin REQUIRED COMPONENTS
   mrs_msgs
   nav_msgs
   sensor_msgs
-  nodelet
   mrs_lib
   mrs_uav_hw_api
   )
@@ -22,7 +21,7 @@ set(LIBRARIES
   )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp nodelet mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api
+  CATKIN_DEPENDS roscpp mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api
   DEPENDS mavros_msgs
   LIBRARIES ${LIBRARIES}
   )
