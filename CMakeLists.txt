@@ -18,7 +18,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(mavros_msgs REQUIRED)
 
 set(LIBRARIES
-  MrsPixhawkPlugin
+  MrsUavHwPixhawkApi
   )
 
 catkin_package(
@@ -34,16 +34,16 @@ include_directories(
 
 # Plugin
 
-add_library(MrsPixhawkPlugin
+add_library(MrsUavHwPixhawkApi
   src/api.cpp
   )
 
-add_dependencies(MrsPixhawkPlugin
+add_dependencies(MrsUavHwPixhawkApi
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   )
 
-target_link_libraries(MrsPixhawkPlugin
+target_link_libraries(MrsUavHwPixhawkApi
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )

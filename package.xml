@@ -26,7 +26,7 @@
   <depend>mrs_uav_hw_api</depend>
 
   <export>
-    <mrs_uav_managers plugin="${prefix}/plugins.xml" />
+    <mrs_uav_hw_api plugin="${prefix}/plugins.xml" />
   </export>
 
 </package>
