@@ -1,8 +1,11 @@
 hw_interface_plugin: "mrs_uav_pixhawk_api/Api"
 
+mavros_timeout: 1.0 # [s]
+
 services:
   mavros:
     command_long: "mavros/cmd/command"
+
 topics:
   mavros:
     state: "mavros/state"
@@ -11,3 +14,5 @@ topics:
     distance_sensor: "mavros/distance_sensor/garmin"
     imu: "mavros/imu/data"
     magnetometer_heading: "mavros/global_position/compass_hdg"
+    attitude_target: "mavros/setpoint_raw/attitude"
+    rc: "mavros/rc/in"

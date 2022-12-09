@@ -24,6 +24,16 @@
 
 //}
 
+/* defines //{ */
+
+#define PWM_MIDDLE 1500
+#define PWM_MIN 1000
+#define PWM_MAX 2000
+#define PWM_DEADBAND 200
+#define PWM_RANGE PWM_MAX - PWM_MIN
+
+//}
+
 namespace mrs_uav_pixhawk_api
 {
 
@@ -68,6 +78,10 @@ private:
   std::string _topic_mavros_distance_sensor_;
   std::string _topic_mavros_imu_;
   std::string _topic_mavros_magnetometer_heading_;
+  std::string _topic_mavros_attitude_target_;
+  std::string _topic_mavros_rc_;
+
+  double _mavros_timeout_;
 
   // | --------------------- service clients -------------------- |
 
@@ -77,8 +91,9 @@ private:
 
   mrs_lib::SubscribeHandler<mavros_msgs::State> sh_mavros_state_;
 
-  void timeoutMavrosState(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
-  void callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State> &wrp);
+  void   timeoutMavrosState(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
+  double RCChannelToRange(const double &rc_value);
+  void   callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State> &wrp);
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odometry_local_;
   void                                          callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odometry> &wrp);
@@ -94,6 +109,13 @@ private:
 
   mrs_lib::SubscribeHandler<std_msgs::Float64> sh_mavros_magnetometer_heading_;
   void                                         callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64> &wrp);
+
+  mrs_lib::SubscribeHandler<mavros_msgs::RCIn> sh_mavros_rc_;
+  void                                         callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp);
+
+  // | ----------------------- publishers ----------------------- |
+
+  mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget> ph_mavros_attitude_target_;
 
   // | ------------------------ variables ----------------------- |
 
@@ -121,6 +143,8 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
 
   mrs_lib::ParamLoader param_loader(nh_, "MrsUavHwApi");
 
+  param_loader.loadParam("mavros_timeout", _mavros_timeout_);
+
   param_loader.loadParam("services/mavros/command_long", _topic_mavros_command_long_);
   param_loader.loadParam("topics/mavros/state", _topic_mavros_state_);
   param_loader.loadParam("topics/mavros/odometry_local", _topic_mavros_odometry_local_);
@@ -128,6 +152,8 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
   param_loader.loadParam("topics/mavros/distance_sensor", _topic_mavros_distance_sensor_);
   param_loader.loadParam("topics/mavros/imu", _topic_mavros_imu_);
   param_loader.loadParam("topics/mavros/magnetometer_heading", _topic_mavros_magnetometer_heading_);
+  param_loader.loadParam("topics/mavros/attitude_target", _topic_mavros_attitude_target_);
+  param_loader.loadParam("topics/mavros/rc", _topic_mavros_rc_);
 
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[MrsUavHwDummyApi]: Could not load all parameters!");
@@ -165,6 +191,12 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
 
   sh_mavros_magnetometer_heading_ = mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, topic_prefix + "/" + _topic_mavros_magnetometer_heading_,
                                                                                  &MrsUavPixhawkApi::callbackMagnetometer, this);
+
+  sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, topic_prefix + "/" + _topic_mavros_rc_, &MrsUavPixhawkApi::callbackRC, this);
+
+  // | ----------------------- publishers ----------------------- |
+
+  ph_mavros_attitude_target_ = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, topic_prefix + "/" + _topic_mavros_attitude_target_, 1);
 
   // | ----------------------- finish init ---------------------- |
 
@@ -224,6 +256,8 @@ mrs_msgs::HwApiMode MrsUavPixhawkApi::getMode() {
 
 bool MrsUavPixhawkApi::callbackControlGroupCmd([[maybe_unused]] const mrs_msgs::HwApiControlGroupCmd &msg) {
 
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting control group cmd");
+
   return false;
 }
 
@@ -233,7 +267,21 @@ bool MrsUavPixhawkApi::callbackControlGroupCmd([[maybe_unused]] const mrs_msgs::
 
 bool MrsUavPixhawkApi::callbackAttitudeRateCmd([[maybe_unused]] const mrs_msgs::HwApiAttitudeRateCmd &msg) {
 
-  return false;
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting attitude rate cmd");
+
+  mavros_msgs::AttitudeTarget attitude_target;
+
+  attitude_target.header.frame_id = "base_link";
+  attitude_target.header.stamp    = msg.stamp;
+
+  attitude_target.body_rate = msg.body_rate;
+  attitude_target.thrust    = msg.throttle;
+
+  attitude_target.type_mask = attitude_target.IGNORE_ATTITUDE;
+
+  ph_mavros_attitude_target_.publish(attitude_target);
+
+  return true;
 }
 
 //}
@@ -242,7 +290,25 @@ bool MrsUavPixhawkApi::callbackAttitudeRateCmd([[maybe_unused]] const mrs_msgs::
 
 bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] const mrs_msgs::HwApiAttitudeCmd &msg) {
 
-  return false;
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting attitude cmd");
+
+  mavros_msgs::AttitudeTarget attitude_target;
+
+  attitude_target.header.frame_id = "base_link";
+  attitude_target.header.stamp    = msg.stamp;
+
+  attitude_target.orientation.x = msg.orientation.x;
+  attitude_target.orientation.y = msg.orientation.y;
+  attitude_target.orientation.z = msg.orientation.z;
+  attitude_target.orientation.w = msg.orientation.w;
+
+  attitude_target.thrust = msg.throttle;
+
+  attitude_target.type_mask = attitude_target.IGNORE_YAW_RATE | attitude_target.IGNORE_ROLL_RATE | attitude_target.IGNORE_PITCH_RATE;
+
+  ph_mavros_attitude_target_.publish(attitude_target);
+
+  return true;
 }
 
 //}
@@ -250,6 +316,8 @@ bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] const mrs_msgs::HwAp
 /* callbackTranslationCmd() //{ */
 
 bool MrsUavPixhawkApi::callbackTranslationCmd([[maybe_unused]] const mrs_msgs::HwApiTranslationCmd &msg) {
+
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting translation cmd");
 
   return false;
 }
@@ -339,10 +407,41 @@ void MrsUavPixhawkApi::timeoutMavrosState([[maybe_unused]] const std::string &to
 
   ros::Duration time = ros::Time::now() - last_msg;
 
-  ROS_ERROR_THROTTLE(1.0, "[MrsUavPixhawkApi]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
-  ROS_INFO_THROTTLE(1.0, "[MrsUavPixhawkApi]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
-  ROS_INFO_THROTTLE(1.0, "[MrsUavPixhawkApi]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
-  ROS_INFO_THROTTLE(1.0, "[MrsUavPixhawkApi]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
+  if (time.toSec() > _mavros_timeout_) {
+
+    connected_ = false;
+    offboard_  = false;
+    armed_     = false;
+
+    ROS_ERROR_THROTTLE(1.0, "[MrsUavPixhawkApi]: Have not received Mavros state for more than '%.3f s'", time.toSec());
+
+  } else {
+
+    ROS_ERROR_THROTTLE(1.0, "[MrsUavPixhawkApi]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
+    ROS_INFO_THROTTLE(1.0,
+                      "[MrsUavPixhawkApi]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
+    ROS_INFO_THROTTLE(1.0,
+                      "[MrsUavPixhawkApi]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
+    ROS_INFO_THROTTLE(1.0,
+                      "[MrsUavPixhawkApi]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
+  }
+}
+
+//}
+
+/* RCChannelToRange() //{ */
+
+double MrsUavPixhawkApi::RCChannelToRange(const double &rc_value) {
+
+  double tmp_0_to_1 = (rc_value - double(PWM_MIN)) / (double(PWM_RANGE));
+
+  if (tmp_0_to_1 > 1.0) {
+    tmp_0_to_1 = 1.0;
+  } else if (tmp_0_to_1 < 0.0) {
+    tmp_0_to_1 = 0.0;
+  }
+
+  return tmp_0_to_1;
 }
 
 //}
@@ -475,6 +574,31 @@ void MrsUavPixhawkApi::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::
   mag_out.value        = mag->data;
 
   common_handlers_->publishers.publishMagnetometerHeading(mag_out);
+}
+
+//}
+
+/* callbackRC() //{ */
+
+void MrsUavPixhawkApi::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting RC");
+
+  mavros_msgs::RCInConstPtr msg_in = wrp.getMsg();
+
+  mrs_msgs::HwApiRcChannels rc_out;
+
+  rc_out.stamp = msg_in->header.stamp;
+
+  for (int i = 0; i < msg_in->channels.size(); i++) {
+    rc_out.channels.push_back(RCChannelToRange(msg_in->channels[i]));
+  }
+
+  common_handlers_->publishers.publishRcChannels(rc_out);
 }
 
 //}
