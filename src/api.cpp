@@ -15,6 +15,8 @@
 
 #include <std_msgs/Float64.h>
 
+#include <geometry_msgs/QuaternionStamped.h>
+
 #include <mavros_msgs/AttitudeTarget.h>
 #include <mavros_msgs/CommandLong.h>
 #include <mavros_msgs/State.h>
@@ -387,9 +389,20 @@ void MrsUavPixhawkApi::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs:
 
   ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting local odometry");
 
+  // | --------------- publish the local odometry --------------- |
+
   nav_msgs::OdometryConstPtr odom = wrp.getMsg();
 
   common_handlers_->publishers.publishOdometryLocal(*odom);
+
+  // | ----------------- publish the orientation ---------------- |
+
+  geometry_msgs::QuaternionStamped quat;
+
+  quat.header     = odom->header;
+  quat.quaternion = odom->pose.pose.orientation;
+
+  common_handlers_->publishers.publishOrientation(quat);
 }
 
 //}

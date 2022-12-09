@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   cmake_modules
   mrs_msgs
   nav_msgs
+  geometry_msgs
   sensor_msgs
   mrs_lib
   mrs_uav_hw_api
@@ -21,7 +22,7 @@ set(LIBRARIES
   )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api
+  CATKIN_DEPENDS roscpp mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api geometry_msgs
   DEPENDS mavros_msgs
   LIBRARIES ${LIBRARIES}
   )

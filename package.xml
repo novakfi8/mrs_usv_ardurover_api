@@ -21,6 +21,7 @@
   <depend>sensor_msgs</depend>
   <depend>mrs_lib</depend>
   <depend>mavros_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>mrs_uav_hw_api</depend>
 
   <export>
