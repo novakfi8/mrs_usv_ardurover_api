@@ -19,6 +19,7 @@
 
 #include <mavros_msgs/AttitudeTarget.h>
 #include <mavros_msgs/CommandLong.h>
+#include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/RCIn.h>
 
@@ -62,7 +63,7 @@ public:
   // | -------------------- service callbacks ------------------- |
 
   std::tuple<bool, std::string> callbackArming(const bool &request);
-  std::tuple<bool, std::string> callbackOffboard(const bool &request);
+  std::tuple<bool, std::string> callbackOffboard(void);
 
 private:
   bool is_initialized_ = false;
@@ -71,7 +72,9 @@ private:
 
   // | ----------------------- parameters ----------------------- |
 
-  std::string _topic_mavros_command_long_;
+  std::string _service_mavros_command_long_;
+  std::string _service_mavros_mode_;
+
   std::string _topic_mavros_state_;
   std::string _topic_mavros_odometry_local_;
   std::string _topic_mavros_gps_;
@@ -86,6 +89,7 @@ private:
   // | --------------------- service clients -------------------- |
 
   mrs_lib::ServiceClientHandler<mavros_msgs::CommandLong> sch_mavros_command_long_;
+  mrs_lib::ServiceClientHandler<mavros_msgs::SetMode>     sch_mavros_mode_;
 
   // | ----------------------- subscribers ---------------------- |
 
@@ -145,7 +149,8 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
 
   param_loader.loadParam("mavros_timeout", _mavros_timeout_);
 
-  param_loader.loadParam("services/mavros/command_long", _topic_mavros_command_long_);
+  param_loader.loadParam("services/mavros/command_long", _service_mavros_command_long_);
+  param_loader.loadParam("services/mavros/mode", _service_mavros_mode_);
   param_loader.loadParam("topics/mavros/state", _topic_mavros_state_);
   param_loader.loadParam("topics/mavros/odometry_local", _topic_mavros_odometry_local_);
   param_loader.loadParam("topics/mavros/gps", _topic_mavros_gps_);
@@ -162,7 +167,8 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
 
   // | --------------------- service clients -------------------- |
 
-  sch_mavros_command_long_ = mrs_lib::ServiceClientHandler<mavros_msgs::CommandLong>(nh_, topic_prefix + "/" + _topic_mavros_command_long_);
+  sch_mavros_command_long_ = mrs_lib::ServiceClientHandler<mavros_msgs::CommandLong>(nh_, topic_prefix + "/" + _service_mavros_command_long_);
+  sch_mavros_mode_         = mrs_lib::ServiceClientHandler<mavros_msgs::SetMode>(nh_, topic_prefix + "/" + _service_mavros_mode_);
 
   // | ----------------------- subscribers ---------------------- |
 
@@ -384,9 +390,41 @@ std::tuple<bool, std::string> MrsUavPixhawkApi::callbackArming([[maybe_unused]] 
 
 /* callbackOffboard() //{ */
 
-std::tuple<bool, std::string> MrsUavPixhawkApi::callbackOffboard([[maybe_unused]] const bool &request) {
+std::tuple<bool, std::string> MrsUavPixhawkApi::callbackOffboard(void) {
 
-  return {false, "Dummy interface does not allow to switch to offboard."};
+  mavros_msgs::SetMode srv;
+
+  srv.request.base_mode   = 0;
+  srv.request.custom_mode = "OFFBOARD";
+
+  bool res = sch_mavros_mode_.call(srv);
+
+  std::stringstream ss;
+
+  if (!res) {
+
+    ss << "Service call for offboard failed!";
+
+    ROS_ERROR_THROTTLE(1.0, "[PixhawkApi]: %s", ss.str().c_str());
+    return {false, ss.str()};
+
+  } else {
+
+    if (srv.response.mode_sent != 1) {
+
+      ss << "service call for offboard failed, returned " << srv.response.mode_sent;
+
+      ROS_WARN_THROTTLE(1.0, "[PixhawkApi]: %s", ss.str().c_str());
+
+      return {false, ss.str()};
+
+    } else {
+
+      ss << "switched to offboard mode";
+
+      return {true, ss.str()};
+    }
+  }
 }
 
 //}

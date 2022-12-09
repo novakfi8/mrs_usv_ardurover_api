@@ -5,6 +5,7 @@ mavros_timeout: 1.0 # [s]
 services:
   mavros:
     command_long: "mavros/cmd/command"
+    mode: "mavros/set_mode"
 
 topics:
   mavros:
