@@ -58,7 +58,9 @@ public:
   bool callbackControlGroupCmd(const mrs_msgs::HwApiControlGroupCmd &msg);
   bool callbackAttitudeRateCmd(const mrs_msgs::HwApiAttitudeRateCmd &msg);
   bool callbackAttitudeCmd(const mrs_msgs::HwApiAttitudeCmd &msg);
-  bool callbackTranslationCmd(const mrs_msgs::HwApiTranslationCmd &msg);
+  bool callbackAccelerationCmd(const mrs_msgs::HwApiAccelerationCmd &msg);
+  bool callbackVelocityCmd(const mrs_msgs::HwApiVelocityCmd &msg);
+  bool callbackPositionCmd(const mrs_msgs::HwApiPositionCmd &msg);
 
   // | -------------------- service callbacks ------------------- |
 
@@ -243,9 +245,11 @@ mrs_msgs::HwApiMode MrsUavPixhawkApi::getMode() {
   mode.accepts_actuator_cmd      = false;
   mode.accepts_attitude_rate_cmd = true;
   mode.accepts_attitude_cmd      = true;
-  mode.accepts_translation_cmd   = false;
+  mode.accepts_acceleration_cmd  = false;
+  mode.accepts_velocity_cmd      = false;
+  mode.accepts_position_cmd      = false;
 
-  mode.produces_range                = true;
+  mode.produces_distance_sensor      = true;
   mode.produces_gnss                 = true;
   mode.produces_imu                  = true;
   mode.produces_altitude             = false;
@@ -319,11 +323,33 @@ bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] const mrs_msgs::HwAp
 
 //}
 
-/* callbackTranslationCmd() //{ */
+/* callbackAccelerationCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackTranslationCmd([[maybe_unused]] const mrs_msgs::HwApiTranslationCmd &msg) {
+bool MrsUavPixhawkApi::callbackAccelerationCmd([[maybe_unused]] const mrs_msgs::HwApiAccelerationCmd &msg) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting translation cmd");
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting acceleration cmd");
+
+  return false;
+}
+
+//}
+
+/* callbackVelocityCmd() //{ */
+
+bool MrsUavPixhawkApi::callbackVelocityCmd([[maybe_unused]] const mrs_msgs::HwApiVelocityCmd &msg) {
+
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting velocity cmd");
+
+  return false;
+}
+
+//}
+
+/* callbackPositionCmd() //{ */
+
+bool MrsUavPixhawkApi::callbackPositionCmd([[maybe_unused]] const mrs_msgs::HwApiPositionCmd &msg) {
+
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting position cmd");
 
   return false;
 }
@@ -573,7 +599,7 @@ void MrsUavPixhawkApi::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_m
 
   sensor_msgs::RangeConstPtr range = wrp.getMsg();
 
-  common_handlers_->publishers.publishRange(*range);
+  common_handlers_->publishers.publishDistanceSensor(*range);
 }
 
 //}
