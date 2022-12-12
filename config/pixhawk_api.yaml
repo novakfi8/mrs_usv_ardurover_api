@@ -17,3 +17,4 @@ topics:
     magnetometer_heading: "mavros/global_position/compass_hdg"
     attitude_target: "mavros/setpoint_raw/attitude"
     rc: "mavros/rc/in"
+    altitude: "mavros/altitude"
