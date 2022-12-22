@@ -693,7 +693,7 @@ void MrsUavPixhawkApi::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::A
   altitude_out.stamp = altitude_in->header.stamp;
   altitude_out.amsl  = altitude_in->amsl;
 
-  common_handlers_->publishers.publishIMU(*altitude_out);
+  common_handlers_->publishers.publishAltitude(altitude_out);
 }
 
 //}
