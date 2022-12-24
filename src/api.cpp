@@ -87,6 +87,7 @@ private:
   std::string _topic_mavros_attitude_target_;
   std::string _topic_mavros_rc_;
   std::string _topic_mavros_altitude_;
+  std::string _topic_mavros_battery_;
 
   double _mavros_timeout_;
 
@@ -123,6 +124,9 @@ private:
 
   mrs_lib::SubscribeHandler<mavros_msgs::Altitude> sh_mavros_altitude_;
   void                                             callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altitude> &wrp);
+
+  mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> sh_mavros_battery_;
+  void                                                 callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> &wrp);
 
   // | ----------------------- publishers ----------------------- |
 
@@ -167,6 +171,7 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
   param_loader.loadParam("topics/mavros/attitude_target", _topic_mavros_attitude_target_);
   param_loader.loadParam("topics/mavros/rc", _topic_mavros_rc_);
   param_loader.loadParam("topics/mavros/altitude", _topic_mavros_altitude_);
+  param_loader.loadParam("topics/mavros/battery", _topic_mavros_battery_);
 
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[MrsUavHwDummyApi]: Could not load all parameters!");
@@ -210,6 +215,9 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
 
   sh_mavros_altitude_ =
       mrs_lib::SubscribeHandler<mavros_msgs::Altitude>(shopts, topic_prefix + "/" + _topic_mavros_altitude_, &MrsUavPixhawkApi::callbackAltitude, this);
+
+  sh_mavros_battery_ =
+      mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>(shopts, topic_prefix + "/" + _topic_mavros_battery_, &MrsUavPixhawkApi::callbackBattery, this);
 
   // | ----------------------- publishers ----------------------- |
 
@@ -694,6 +702,23 @@ void MrsUavPixhawkApi::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::A
   altitude_out.amsl  = altitude_in->amsl;
 
   common_handlers_->publishers.publishAltitude(altitude_out);
+}
+
+//}
+
+/* callbackBattery() //{ */
+
+void MrsUavPixhawkApi::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> &wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting battery");
+
+  sensor_msgs::BatteryStateConstPtr msg = wrp.getMsg();
+
+  common_handlers_->publishers.publishBatteryState(*msg);
 }
 
 //}

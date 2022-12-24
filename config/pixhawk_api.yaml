@@ -11,10 +11,11 @@ topics:
   mavros:
     state: "mavros/state"
     gps: "mavros/global_position/global"
-    odometry_local: "mavros/global_position/local"
-    distance_sensor: "mavros/distance_sensor/garmin"
+    odometry_local: "mavros/local_position/odom"
+    distance_sensor: "garmin/range"
     imu: "mavros/imu/data"
     magnetometer_heading: "mavros/global_position/compass_hdg"
     attitude_target: "mavros/setpoint_raw/attitude"
     rc: "mavros/rc/in"
     altitude: "mavros/altitude"
+    battery: "mavros/battery"
