@@ -134,9 +134,11 @@ private:
 
   // | ------------------------ variables ----------------------- |
 
-  std::atomic<bool> offboard_  = false;
+  std::atomic<bool> offboard_ = false;
+  std::string       mode_;
   std::atomic<bool> armed_     = false;
   std::atomic<bool> connected_ = false;
+  std::mutex        mutex_diagnostics_;
 };
 
 //}
@@ -240,9 +242,14 @@ mrs_msgs::HwApiDiagnostics MrsUavPixhawkApi::getDiagnostics() {
 
   diag.stamp = ros::Time::now();
 
-  diag.armed     = armed_;
-  diag.offboard  = offboard_;
-  diag.connected = connected_;
+  {
+    std::scoped_lock lock(mutex_diagnostics_);
+
+    diag.armed     = armed_;
+    diag.offboard  = offboard_;
+    diag.connected = connected_;
+    diag.mode      = mode_;
+  }
 
   return diag;
 }
@@ -490,9 +497,14 @@ void MrsUavPixhawkApi::timeoutMavrosState([[maybe_unused]] const std::string &to
 
   if (time.toSec() > _mavros_timeout_) {
 
-    connected_ = false;
-    offboard_  = false;
-    armed_     = false;
+    {
+      std::scoped_lock lock(mutex_diagnostics_);
+
+      connected_ = false;
+      offboard_  = false;
+      armed_     = false;
+      mode_      = "";
+    }
 
     ROS_ERROR_THROTTLE(1.0, "[MrsUavPixhawkApi]: Have not received Mavros state for more than '%.3f s'", time.toSec());
 
@@ -541,18 +553,28 @@ void MrsUavPixhawkApi::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs
 
   mavros_msgs::StateConstPtr state = wrp.getMsg();
 
-  offboard_  = state->mode == "OFFBOARD";
-  armed_     = state->armed;
-  connected_ = true;
+  {
+    std::scoped_lock lock(mutex_diagnostics_);
+
+    offboard_  = state->mode == "OFFBOARD";
+    armed_     = state->armed;
+    connected_ = true;
+    mode_      = state->mode;
+  }
 
   // | ----------------- publish the diagnostics ---------------- |
 
   mrs_msgs::HwApiDiagnostics diag;
 
-  diag.stamp     = ros::Time::now();
-  diag.armed     = armed_;
-  diag.offboard  = offboard_;
-  diag.connected = connected_;
+  {
+    std::scoped_lock lock(mutex_diagnostics_);
+
+    diag.stamp     = ros::Time::now();
+    diag.armed     = armed_;
+    diag.offboard  = offboard_;
+    diag.connected = connected_;
+    diag.mode      = mode_;
+  }
 
   common_handlers_->publishers.publishDiagnostics(diag);
 }
