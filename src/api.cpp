@@ -56,12 +56,13 @@ public:
 
   // | --------------------- topic callbacks -------------------- |
 
-  bool callbackControlGroupCmd(const mrs_msgs::HwApiControlGroupCmd &msg);
-  bool callbackAttitudeRateCmd(const mrs_msgs::HwApiAttitudeRateCmd &msg);
-  bool callbackAttitudeCmd(const mrs_msgs::HwApiAttitudeCmd &msg);
-  bool callbackAccelerationCmd(const mrs_msgs::HwApiAccelerationCmd &msg);
-  bool callbackVelocityCmd(const mrs_msgs::HwApiVelocityCmd &msg);
-  bool callbackPositionCmd(const mrs_msgs::HwApiPositionCmd &msg);
+  bool callbackActuatorCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd> &wrp);
+  bool callbackControlGroupCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd> &wrp);
+  bool callbackAttitudeRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp);
+  bool callbackAttitudeCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd> &wrp);
+  bool callbackAccelerationCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationCmd> &wrp);
+  bool callbackVelocityCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityCmd> &wrp);
+  bool callbackPositionCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp);
 
   // | -------------------- service callbacks ------------------- |
 
@@ -286,9 +287,20 @@ mrs_msgs::HwApiMode MrsUavPixhawkApi::getMode() {
 
 //}
 
+/* callbackControlActuatorCmd() //{ */
+
+bool MrsUavPixhawkApi::callbackActuatorCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd> &wrp) {
+
+  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting actuator cmd");
+
+  return false;
+}
+
+//}
+
 /* callbackControlGroupCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackControlGroupCmd([[maybe_unused]] const mrs_msgs::HwApiControlGroupCmd &msg) {
+bool MrsUavPixhawkApi::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd> &wrp) {
 
   ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting control group cmd");
 
@@ -299,17 +311,19 @@ bool MrsUavPixhawkApi::callbackControlGroupCmd([[maybe_unused]] const mrs_msgs::
 
 /* callbackAttitudeRateCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackAttitudeRateCmd([[maybe_unused]] const mrs_msgs::HwApiAttitudeRateCmd &msg) {
+bool MrsUavPixhawkApi::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp) {
 
   ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting attitude rate cmd");
+
+  auto msg = wrp.getMsg();
 
   mavros_msgs::AttitudeTarget attitude_target;
 
   attitude_target.header.frame_id = "base_link";
-  attitude_target.header.stamp    = msg.stamp;
+  attitude_target.header.stamp    = msg->stamp;
 
-  attitude_target.body_rate = msg.body_rate;
-  attitude_target.thrust    = msg.throttle;
+  attitude_target.body_rate = msg->body_rate;
+  attitude_target.thrust    = msg->throttle;
 
   attitude_target.type_mask = attitude_target.IGNORE_ATTITUDE;
 
@@ -322,21 +336,23 @@ bool MrsUavPixhawkApi::callbackAttitudeRateCmd([[maybe_unused]] const mrs_msgs::
 
 /* callbackAttitudeCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] const mrs_msgs::HwApiAttitudeCmd &msg) {
+bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd> &wrp) {
 
   ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting attitude cmd");
+
+  auto msg = wrp.getMsg();
 
   mavros_msgs::AttitudeTarget attitude_target;
 
   attitude_target.header.frame_id = "base_link";
-  attitude_target.header.stamp    = msg.stamp;
+  attitude_target.header.stamp    = msg->stamp;
 
-  attitude_target.orientation.x = msg.orientation.x;
-  attitude_target.orientation.y = msg.orientation.y;
-  attitude_target.orientation.z = msg.orientation.z;
-  attitude_target.orientation.w = msg.orientation.w;
+  attitude_target.orientation.x = msg->orientation.x;
+  attitude_target.orientation.y = msg->orientation.y;
+  attitude_target.orientation.z = msg->orientation.z;
+  attitude_target.orientation.w = msg->orientation.w;
 
-  attitude_target.thrust = msg.throttle;
+  attitude_target.thrust = msg->throttle;
 
   attitude_target.type_mask = attitude_target.IGNORE_YAW_RATE | attitude_target.IGNORE_ROLL_RATE | attitude_target.IGNORE_PITCH_RATE;
 
@@ -349,7 +365,7 @@ bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] const mrs_msgs::HwAp
 
 /* callbackAccelerationCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackAccelerationCmd([[maybe_unused]] const mrs_msgs::HwApiAccelerationCmd &msg) {
+bool MrsUavPixhawkApi::callbackAccelerationCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationCmd> &wrp) {
 
   ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting acceleration cmd");
 
@@ -360,7 +376,7 @@ bool MrsUavPixhawkApi::callbackAccelerationCmd([[maybe_unused]] const mrs_msgs::
 
 /* callbackVelocityCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackVelocityCmd([[maybe_unused]] const mrs_msgs::HwApiVelocityCmd &msg) {
+bool MrsUavPixhawkApi::callbackVelocityCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityCmd> &wrp) {
 
   ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting velocity cmd");
 
@@ -371,7 +387,7 @@ bool MrsUavPixhawkApi::callbackVelocityCmd([[maybe_unused]] const mrs_msgs::HwAp
 
 /* callbackPositionCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackPositionCmd([[maybe_unused]] const mrs_msgs::HwApiPositionCmd &msg) {
+bool MrsUavPixhawkApi::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp) {
 
   ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting position cmd");
 
