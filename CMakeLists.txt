@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1.2)
-project(mrs_uav_pixhawk_api)
+project(mrs_uav_px4_api)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -18,7 +18,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(mavros_msgs REQUIRED)
 
 set(LIBRARIES
-  MrsUavHwPixhawkApi
+  MrsUavHwPx4Api
   )
 
 catkin_package(
@@ -34,16 +34,16 @@ include_directories(
 
 # Plugin
 
-add_library(MrsUavHwPixhawkApi
+add_library(MrsUavHwPx4Api
   src/api.cpp
   )
 
-add_dependencies(MrsUavHwPixhawkApi
+add_dependencies(MrsUavHwPx4Api
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   )
 
-target_link_libraries(MrsUavHwPixhawkApi
+target_link_libraries(MrsUavHwPx4Api
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )

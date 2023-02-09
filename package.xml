@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <package format="2">
 
-  <name>mrs_uav_pixhawk_api</name>
+  <name>mrs_uav_px4_api</name>
   <version>1.0.0</version>
-  <description>Pixhawk API for MRS UAV System</description>
+  <description>PX4 API for MRS UAV System</description>
 
   <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
   <maintainer email="tomas.baca@fel.cvut.cz">Tomas Baca</maintainer>

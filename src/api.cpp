@@ -36,15 +36,15 @@
 
 //}
 
-namespace mrs_uav_pixhawk_api
+namespace mrs_uav_px4_api
 {
 
-/* class MrsUavPixhawkApi //{ */
+/* class MrsUavPx4Api //{ */
 
-class MrsUavPixhawkApi : public mrs_uav_hw_api::MrsUavHwApi {
+class MrsUavPx4Api : public mrs_uav_hw_api::MrsUavHwApi {
 
 public:
-  ~MrsUavPixhawkApi(){};
+  ~MrsUavPx4Api(){};
 
   void initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers, const std::string &topic_prefix,
                   const std::string &uav_name);
@@ -150,8 +150,8 @@ private:
 
 /* initialize() //{ */
 
-void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers,
-                                  [[maybe_unused]] const std::string &topic_prefix, [[maybe_unused]] const std::string &uav_name) {
+void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers,
+                              [[maybe_unused]] const std::string &topic_prefix, [[maybe_unused]] const std::string &uav_name) {
 
   ros::NodeHandle nh_(parent_nh);
 
@@ -190,7 +190,7 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
 
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh_;
-  shopts.node_name          = "MrsHwPixhawkApi";
+  shopts.node_name          = "MrsHwPx4Api";
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -198,29 +198,28 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_mavros_state_ = mrs_lib::SubscribeHandler<mavros_msgs::State>(shopts, topic_prefix + "/" + _topic_mavros_state_, ros::Duration(0.05),
-                                                                   &MrsUavPixhawkApi::timeoutMavrosState, this, &MrsUavPixhawkApi::callbackMavrosState, this);
+                                                                   &MrsUavPx4Api::timeoutMavrosState, this, &MrsUavPx4Api::callbackMavrosState, this);
 
   sh_mavros_odometry_local_ =
-      mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, topic_prefix + "/" + _topic_mavros_odometry_local_, &MrsUavPixhawkApi::callbackOdometryLocal, this);
+      mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, topic_prefix + "/" + _topic_mavros_odometry_local_, &MrsUavPx4Api::callbackOdometryLocal, this);
 
-  sh_mavros_gps_ =
-      mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, topic_prefix + "/" + _topic_mavros_gps_, &MrsUavPixhawkApi::callbackNavsatFix, this);
+  sh_mavros_gps_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, topic_prefix + "/" + _topic_mavros_gps_, &MrsUavPx4Api::callbackNavsatFix, this);
 
-  sh_mavros_distance_sensor_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, topic_prefix + "/" + _topic_mavros_distance_sensor_,
-                                                                             &MrsUavPixhawkApi::callbackDistanceSensor, this);
+  sh_mavros_distance_sensor_ =
+      mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, topic_prefix + "/" + _topic_mavros_distance_sensor_, &MrsUavPx4Api::callbackDistanceSensor, this);
 
-  sh_mavros_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, topic_prefix + "/" + _topic_mavros_imu_, &MrsUavPixhawkApi::callbackImu, this);
+  sh_mavros_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, topic_prefix + "/" + _topic_mavros_imu_, &MrsUavPx4Api::callbackImu, this);
 
-  sh_mavros_magnetometer_heading_ = mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, topic_prefix + "/" + _topic_mavros_magnetometer_heading_,
-                                                                                 &MrsUavPixhawkApi::callbackMagnetometer, this);
+  sh_mavros_magnetometer_heading_ =
+      mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, topic_prefix + "/" + _topic_mavros_magnetometer_heading_, &MrsUavPx4Api::callbackMagnetometer, this);
 
-  sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, topic_prefix + "/" + _topic_mavros_rc_, &MrsUavPixhawkApi::callbackRC, this);
+  sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, topic_prefix + "/" + _topic_mavros_rc_, &MrsUavPx4Api::callbackRC, this);
 
   sh_mavros_altitude_ =
-      mrs_lib::SubscribeHandler<mavros_msgs::Altitude>(shopts, topic_prefix + "/" + _topic_mavros_altitude_, &MrsUavPixhawkApi::callbackAltitude, this);
+      mrs_lib::SubscribeHandler<mavros_msgs::Altitude>(shopts, topic_prefix + "/" + _topic_mavros_altitude_, &MrsUavPx4Api::callbackAltitude, this);
 
   sh_mavros_battery_ =
-      mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>(shopts, topic_prefix + "/" + _topic_mavros_battery_, &MrsUavPixhawkApi::callbackBattery, this);
+      mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>(shopts, topic_prefix + "/" + _topic_mavros_battery_, &MrsUavPx4Api::callbackBattery, this);
 
   // | ----------------------- publishers ----------------------- |
 
@@ -237,7 +236,7 @@ void MrsUavPixhawkApi::initialize(const ros::NodeHandle &parent_nh, std::shared_
 
 /* getDiagnostics() //{ */
 
-mrs_msgs::HwApiDiagnostics MrsUavPixhawkApi::getDiagnostics() {
+mrs_msgs::HwApiDiagnostics MrsUavPx4Api::getDiagnostics() {
 
   mrs_msgs::HwApiDiagnostics diag;
 
@@ -259,11 +258,11 @@ mrs_msgs::HwApiDiagnostics MrsUavPixhawkApi::getDiagnostics() {
 
 /* getMode() //{ */
 
-mrs_msgs::HwApiMode MrsUavPixhawkApi::getMode() {
+mrs_msgs::HwApiMode MrsUavPx4Api::getMode() {
 
   mrs_msgs::HwApiMode mode;
 
-  mode.api_name = "PixhawkApi";
+  mode.api_name = "Px4Api";
   mode.stamp    = ros::Time::now();
 
   mode.accepts_control_group_cmd = false;
@@ -289,9 +288,9 @@ mrs_msgs::HwApiMode MrsUavPixhawkApi::getMode() {
 
 /* callbackControlActuatorCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackActuatorCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd> &wrp) {
+bool MrsUavPx4Api::callbackActuatorCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting actuator cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting actuator cmd");
 
   return false;
 }
@@ -300,9 +299,9 @@ bool MrsUavPixhawkApi::callbackActuatorCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
 /* callbackControlGroupCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd> &wrp) {
+bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting control group cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting control group cmd");
 
   return false;
 }
@@ -311,9 +310,9 @@ bool MrsUavPixhawkApi::callbackControlGroupCmd([[maybe_unused]] mrs_lib::Subscri
 
 /* callbackAttitudeRateCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp) {
+bool MrsUavPx4Api::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting attitude rate cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude rate cmd");
 
   auto msg = wrp.getMsg();
 
@@ -336,9 +335,9 @@ bool MrsUavPixhawkApi::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::Subscri
 
 /* callbackAttitudeCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd> &wrp) {
+bool MrsUavPx4Api::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting attitude cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude cmd");
 
   auto msg = wrp.getMsg();
 
@@ -365,9 +364,9 @@ bool MrsUavPixhawkApi::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
 /* callbackAccelerationCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackAccelerationCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationCmd> &wrp) {
+bool MrsUavPx4Api::callbackAccelerationCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting acceleration cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration cmd");
 
   return false;
 }
@@ -376,9 +375,9 @@ bool MrsUavPixhawkApi::callbackAccelerationCmd([[maybe_unused]] mrs_lib::Subscri
 
 /* callbackVelocityCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackVelocityCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityCmd> &wrp) {
+bool MrsUavPx4Api::callbackVelocityCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting velocity cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity cmd");
 
   return false;
 }
@@ -387,9 +386,9 @@ bool MrsUavPixhawkApi::callbackVelocityCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
 /* callbackPositionCmd() //{ */
 
-bool MrsUavPixhawkApi::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp) {
+bool MrsUavPx4Api::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting position cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting position cmd");
 
   return false;
 }
@@ -398,21 +397,21 @@ bool MrsUavPixhawkApi::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
 /* callbackArming() //{ */
 
-std::tuple<bool, std::string> MrsUavPixhawkApi::callbackArming([[maybe_unused]] const bool &request) {
+std::tuple<bool, std::string> MrsUavPx4Api::callbackArming([[maybe_unused]] const bool &request) {
 
   std::stringstream ss;
 
-  if (request) {
+  /* if (request) { */
 
-    ss << "Arming is not allowed using the companion computer.";
-    ROS_WARN_STREAM_THROTTLE(1.0, "[PixhawkApi]: " << ss.str());
-    return std::tuple(false, ss.str());
-  }
+  /*   ss << "Arming is not allowed using the companion computer."; */
+  /*   ROS_WARN_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str()); */
+  /*   return std::tuple(false, ss.str()); */
+  /* } */
 
-  if (!offboard_) {
+  if (!request && !offboard_) {
 
     ss << "can not disarm, not in OFFBOARD mode";
-    ROS_WARN_STREAM_THROTTLE(1.0, "[PixhawkApi]: " << ss.str());
+    ROS_WARN_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
     return std::tuple(false, ss.str());
   }
 
@@ -430,23 +429,23 @@ std::tuple<bool, std::string> MrsUavPixhawkApi::callbackArming([[maybe_unused]] 
   srv_out.request.param6 = 0;
   srv_out.request.param7 = 0;
 
-  ROS_INFO("[PixhawkApi]: calling for %s", request ? "arming" : "disarming");
+  ROS_INFO("[Px4Api]: calling for %s", request ? "arming" : "disarming");
 
   if (sch_mavros_command_long_.call(srv_out)) {
 
     if (srv_out.response.success) {
 
       ss << "service call for " << (request ? "arming" : "disarming") << " was successful";
-      ROS_INFO_STREAM_THROTTLE(1.0, "[PixhawkApi]: " << ss.str());
+      ROS_INFO_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
 
     } else {
       ss << "service call for " << (request ? "arming" : "disarming") << " failed";
-      ROS_ERROR_STREAM_THROTTLE(1.0, "[PixhawkApi]: " << ss.str());
+      ROS_ERROR_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
     }
 
   } else {
     ss << "calling for " << (request ? "arming" : "disarming") << " resulted in failure: '" << srv_out.response.result << "'";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[PixhawkApi]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
   }
 
   return {srv_out.response.success, ss.str()};
@@ -456,7 +455,7 @@ std::tuple<bool, std::string> MrsUavPixhawkApi::callbackArming([[maybe_unused]] 
 
 /* callbackOffboard() //{ */
 
-std::tuple<bool, std::string> MrsUavPixhawkApi::callbackOffboard(void) {
+std::tuple<bool, std::string> MrsUavPx4Api::callbackOffboard(void) {
 
   mavros_msgs::SetMode srv;
 
@@ -471,7 +470,7 @@ std::tuple<bool, std::string> MrsUavPixhawkApi::callbackOffboard(void) {
 
     ss << "Service call for offboard failed!";
 
-    ROS_ERROR_THROTTLE(1.0, "[PixhawkApi]: %s", ss.str().c_str());
+    ROS_ERROR_THROTTLE(1.0, "[Px4Api]: %s", ss.str().c_str());
     return {false, ss.str()};
 
   } else {
@@ -480,7 +479,7 @@ std::tuple<bool, std::string> MrsUavPixhawkApi::callbackOffboard(void) {
 
       ss << "service call for offboard failed, returned " << srv.response.mode_sent;
 
-      ROS_WARN_THROTTLE(1.0, "[PixhawkApi]: %s", ss.str().c_str());
+      ROS_WARN_THROTTLE(1.0, "[Px4Api]: %s", ss.str().c_str());
 
       return {false, ss.str()};
 
@@ -499,7 +498,7 @@ std::tuple<bool, std::string> MrsUavPixhawkApi::callbackOffboard(void) {
 
 /* timeoutMavrosState() //{ */
 
-void MrsUavPixhawkApi::timeoutMavrosState([[maybe_unused]] const std::string &topic, const ros::Time &last_msg, [[maybe_unused]] const int n_pubs) {
+void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string &topic, const ros::Time &last_msg, [[maybe_unused]] const int n_pubs) {
 
   if (!is_initialized_) {
     return;
@@ -522,17 +521,14 @@ void MrsUavPixhawkApi::timeoutMavrosState([[maybe_unused]] const std::string &to
       mode_      = "";
     }
 
-    ROS_ERROR_THROTTLE(1.0, "[MrsUavPixhawkApi]: Have not received Mavros state for more than '%.3f s'", time.toSec());
+    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: Have not received Mavros state for more than '%.3f s'", time.toSec());
 
   } else {
 
-    ROS_ERROR_THROTTLE(1.0, "[MrsUavPixhawkApi]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
-    ROS_INFO_THROTTLE(1.0,
-                      "[MrsUavPixhawkApi]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
-    ROS_INFO_THROTTLE(1.0,
-                      "[MrsUavPixhawkApi]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
-    ROS_INFO_THROTTLE(1.0,
-                      "[MrsUavPixhawkApi]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
+    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
+    ROS_INFO_THROTTLE(1.0, "[MrsUavPx4Api]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
+    ROS_INFO_THROTTLE(1.0, "[MrsUavPx4Api]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
+    ROS_INFO_THROTTLE(1.0, "[MrsUavPx4Api]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
   }
 }
 
@@ -540,7 +536,7 @@ void MrsUavPixhawkApi::timeoutMavrosState([[maybe_unused]] const std::string &to
 
 /* RCChannelToRange() //{ */
 
-double MrsUavPixhawkApi::RCChannelToRange(const double &rc_value) {
+double MrsUavPx4Api::RCChannelToRange(const double &rc_value) {
 
   double tmp_0_to_1 = (rc_value - double(PWM_MIN)) / (double(PWM_RANGE));
 
@@ -559,13 +555,13 @@ double MrsUavPixhawkApi::RCChannelToRange(const double &rc_value) {
 
 /* //{ callbackMavrosState() */
 
-void MrsUavPixhawkApi::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State> &wrp) {
+void MrsUavPx4Api::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting Mavros state");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting Mavros state");
 
   mavros_msgs::StateConstPtr state = wrp.getMsg();
 
@@ -599,13 +595,13 @@ void MrsUavPixhawkApi::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs
 
 /* callbackOdometryLocal() //{ */
 
-void MrsUavPixhawkApi::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odometry> &wrp) {
+void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odometry> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting local odometry");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting local odometry");
 
   // | --------------- publish the local odometry --------------- |
 
@@ -627,13 +623,13 @@ void MrsUavPixhawkApi::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs:
 
 /* callbackNavsatFix() //{ */
 
-void MrsUavPixhawkApi::callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> &wrp) {
+void MrsUavPx4Api::callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting NavSat fix");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting NavSat fix");
 
   sensor_msgs::NavSatFixConstPtr gnss = wrp.getMsg();
 
@@ -644,13 +640,13 @@ void MrsUavPixhawkApi::callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::
 
 /* callbackDistanceSensor() //{ */
 
-void MrsUavPixhawkApi::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs::Range> &wrp) {
+void MrsUavPx4Api::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs::Range> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting distnace sensor");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting distnace sensor");
 
   sensor_msgs::RangeConstPtr range = wrp.getMsg();
 
@@ -661,13 +657,13 @@ void MrsUavPixhawkApi::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_m
 
 /* callbackImu() //{ */
 
-void MrsUavPixhawkApi::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu> &wrp) {
+void MrsUavPx4Api::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting IMU");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting IMU");
 
   sensor_msgs::ImuConstPtr imu = wrp.getMsg();
 
@@ -678,13 +674,13 @@ void MrsUavPixhawkApi::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu> &
 
 /* callbackCompass() //{ */
 
-void MrsUavPixhawkApi::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64> &wrp) {
+void MrsUavPx4Api::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting magnetometer heading");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting magnetometer heading");
 
   std_msgs::Float64ConstPtr mag = wrp.getMsg();
 
@@ -699,13 +695,13 @@ void MrsUavPixhawkApi::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::
 
 /* callbackRC() //{ */
 
-void MrsUavPixhawkApi::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp) {
+void MrsUavPx4Api::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting RC");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting RC");
 
   mavros_msgs::RCInConstPtr msg_in = wrp.getMsg();
 
@@ -724,13 +720,13 @@ void MrsUavPixhawkApi::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &
 
 /* callbackAltitude() //{ */
 
-void MrsUavPixhawkApi::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altitude> &wrp) {
+void MrsUavPx4Api::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altitude> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting Altitude");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting Altitude");
 
   mavros_msgs::AltitudeConstPtr altitude_in = wrp.getMsg();
 
@@ -746,13 +742,13 @@ void MrsUavPixhawkApi::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::A
 
 /* callbackBattery() //{ */
 
-void MrsUavPixhawkApi::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> &wrp) {
+void MrsUavPx4Api::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> &wrp) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPixhawkApi]: getting battery");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting battery");
 
   sensor_msgs::BatteryStateConstPtr msg = wrp.getMsg();
 
@@ -761,7 +757,7 @@ void MrsUavPixhawkApi::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::Ba
 
 //}
 
-}  // namespace mrs_uav_pixhawk_api
+}  // namespace mrs_uav_px4_api
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(mrs_uav_pixhawk_api::MrsUavPixhawkApi, mrs_uav_hw_api::MrsUavHwApi)
+PLUGINLIB_EXPORT_CLASS(mrs_uav_px4_api::MrsUavPx4Api, mrs_uav_hw_api::MrsUavHwApi)
