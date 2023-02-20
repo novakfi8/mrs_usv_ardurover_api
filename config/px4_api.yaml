@@ -2,6 +2,11 @@ hw_interface_plugin: "mrs_uav_px4_api/Api"
 
 mavros_timeout: 1.0 # [s]
 
+inputs:
+  control_group: false
+  attitude:      true
+  attitude_rate: true
+
 services:
   mavros:
     command_long: "mavros/cmd/command"

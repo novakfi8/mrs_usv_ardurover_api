@@ -60,8 +60,10 @@ public:
   bool callbackControlGroupCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd> &wrp);
   bool callbackAttitudeRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp);
   bool callbackAttitudeCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd> &wrp);
-  bool callbackAccelerationCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationCmd> &wrp);
-  bool callbackVelocityCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityCmd> &wrp);
+  bool callbackAccelerationHdgRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgRateCmd> &wrp);
+  bool callbackAccelerationHdgCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgCmd> &wrp);
+  bool callbackVelocityHdgRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgRateCmd> &wrp);
+  bool callbackVelocityHdgCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgCmd> &wrp);
   bool callbackPositionCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp);
 
   // | -------------------- service callbacks ------------------- |
@@ -75,6 +77,10 @@ private:
   std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers_;
 
   // | ----------------------- parameters ----------------------- |
+
+  bool _input_control_group_;
+  bool _input_attitude_rate_;
+  bool _input_attitude_;
 
   std::string _service_mavros_command_long_;
   std::string _service_mavros_mode_;
@@ -162,6 +168,10 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
   mrs_lib::ParamLoader param_loader(nh_, "MrsUavHwApi");
 
   param_loader.loadParam("mavros_timeout", _mavros_timeout_);
+
+  param_loader.loadParam("inputs/control_group", _input_control_group_);
+  param_loader.loadParam("inputs/attitude_rate", _input_attitude_rate_);
+  param_loader.loadParam("inputs/attitude", _input_attitude_);
 
   param_loader.loadParam("services/mavros/command_long", _service_mavros_command_long_);
   param_loader.loadParam("services/mavros/mode", _service_mavros_mode_);
@@ -265,18 +275,20 @@ mrs_msgs::HwApiMode MrsUavPx4Api::getMode() {
   mode.api_name = "Px4Api";
   mode.stamp    = ros::Time::now();
 
-  mode.accepts_control_group_cmd = false;
-  mode.accepts_actuator_cmd      = false;
-  mode.accepts_attitude_rate_cmd = true;
-  mode.accepts_attitude_cmd      = true;
-  mode.accepts_acceleration_cmd  = false;
-  mode.accepts_velocity_cmd      = false;
-  mode.accepts_position_cmd      = false;
+  mode.accepts_control_group_cmd         = false;
+  mode.accepts_actuator_cmd              = _input_control_group_;
+  mode.accepts_attitude_rate_cmd         = _input_attitude_rate_;
+  mode.accepts_attitude_cmd              = _input_attitude_;
+  mode.accepts_acceleration_hdg_rate_cmd = false;
+  mode.accepts_acceleration_hdg_cmd      = false;
+  mode.accepts_velocity_hdg_rate_cmd     = false;
+  mode.accepts_velocity_hdg_cmd          = false;
+  mode.accepts_position_cmd              = false;
 
   mode.produces_distance_sensor      = true;
   mode.produces_gnss                 = true;
   mode.produces_imu                  = true;
-  mode.produces_altitude             = false;
+  mode.produces_altitude             = true;
   mode.produces_magnetometer_heading = true;
   mode.produces_odometry_local       = true;
   mode.produces_rc_channels          = true;
@@ -303,6 +315,11 @@ bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting control group cmd");
 
+  if (!_input_control_group_) {
+    ROS_ERROR("[MrsUavPx4Api]: the control group input is not enabled in the config file");
+    return false;
+  }
+
   return false;
 }
 
@@ -313,6 +330,11 @@ bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHa
 bool MrsUavPx4Api::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude rate cmd");
+
+  if (!_input_attitude_rate_) {
+    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: attitude rate input is not enabled in the config file");
+    return false;
+  }
 
   auto msg = wrp.getMsg();
 
@@ -339,6 +361,11 @@ bool MrsUavPx4Api::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandle
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude cmd");
 
+  if (!_input_attitude_) {
+    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: attitude input is not enabled in the config file");
+    return false;
+  }
+
   auto msg = wrp.getMsg();
 
   mavros_msgs::AttitudeTarget attitude_target;
@@ -362,22 +389,44 @@ bool MrsUavPx4Api::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandle
 
 //}
 
-/* callbackAccelerationCmd() //{ */
+/* callbackAccelerationHdgRateCmd() //{ */
 
-bool MrsUavPx4Api::callbackAccelerationCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationCmd> &wrp) {
+bool MrsUavPx4Api::callbackAccelerationHdgRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgRateCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration+hdg rate cmd");
 
   return false;
 }
 
 //}
 
-/* callbackVelocityCmd() //{ */
+/* callbackAccelerationHdgCmd() //{ */
 
-bool MrsUavPx4Api::callbackVelocityCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityCmd> &wrp) {
+bool MrsUavPx4Api::callbackAccelerationHdgCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgCmd> &wrp) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity cmd");
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration+hdg cmd");
+
+  return false;
+}
+
+//}
+
+/* callbackVelocityHdgRateCmd() //{ */
+
+bool MrsUavPx4Api::callbackVelocityHdgRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgRateCmd> &wrp) {
+
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity+hdg rate cmd");
+
+  return false;
+}
+
+//}
+
+/* callbackVelocityHdgCmd() //{ */
+
+bool MrsUavPx4Api::callbackVelocityHdgCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgCmd> &wrp) {
+
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity+hdg  cmd");
 
   return false;
 }
