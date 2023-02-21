@@ -23,6 +23,7 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/RCIn.h>
 #include <mavros_msgs/Altitude.h>
+#include <mavros_msgs/ActuatorControl.h>
 
 //}
 
@@ -92,6 +93,7 @@ private:
   std::string _topic_mavros_imu_;
   std::string _topic_mavros_magnetometer_heading_;
   std::string _topic_mavros_attitude_target_;
+  std::string _topic_mavros_actuator_control;
   std::string _topic_mavros_rc_;
   std::string _topic_mavros_altitude_;
   std::string _topic_mavros_battery_;
@@ -137,7 +139,8 @@ private:
 
   // | ----------------------- publishers ----------------------- |
 
-  mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget> ph_mavros_attitude_target_;
+  mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>  ph_mavros_attitude_target_;
+  mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl> ph_mavros_actuator_control_;
 
   // | ------------------------ variables ----------------------- |
 
@@ -182,6 +185,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
   param_loader.loadParam("topics/mavros/imu", _topic_mavros_imu_);
   param_loader.loadParam("topics/mavros/magnetometer_heading", _topic_mavros_magnetometer_heading_);
   param_loader.loadParam("topics/mavros/attitude_target", _topic_mavros_attitude_target_);
+  param_loader.loadParam("topics/mavros/actuator_control", _topic_mavros_actuator_control);
   param_loader.loadParam("topics/mavros/rc", _topic_mavros_rc_);
   param_loader.loadParam("topics/mavros/altitude", _topic_mavros_altitude_);
   param_loader.loadParam("topics/mavros/battery", _topic_mavros_battery_);
@@ -233,7 +237,8 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
 
   // | ----------------------- publishers ----------------------- |
 
-  ph_mavros_attitude_target_ = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, topic_prefix + "/" + _topic_mavros_attitude_target_, 1);
+  ph_mavros_attitude_target_  = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, topic_prefix + "/" + _topic_mavros_attitude_target_, 1);
+  ph_mavros_actuator_control_ = mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl>(nh_, topic_prefix + "/" + _topic_mavros_actuator_control, 1);
 
   // | ----------------------- finish init ---------------------- |
 
@@ -275,8 +280,8 @@ mrs_msgs::HwApiMode MrsUavPx4Api::getMode() {
   mode.api_name = "Px4Api";
   mode.stamp    = ros::Time::now();
 
-  mode.accepts_control_group_cmd         = false;
-  mode.accepts_actuator_cmd              = _input_control_group_;
+  mode.accepts_actuator_cmd              = false;
+  mode.accepts_control_group_cmd         = _input_control_group_;
   mode.accepts_attitude_rate_cmd         = _input_attitude_rate_;
   mode.accepts_attitude_cmd              = _input_attitude_;
   mode.accepts_acceleration_hdg_rate_cmd = false;
@@ -320,7 +325,21 @@ bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHa
     return false;
   }
 
-  return false;
+  auto msg = wrp.getMsg();
+
+  mavros_msgs::ActuatorControl msg_out;
+
+  msg_out.header.frame_id = "base_link";
+  msg_out.header.stamp    = msg->stamp;
+
+  msg_out.controls[0] = msg->roll;
+  msg_out.controls[1] = -msg->pitch;
+  msg_out.controls[2] = -msg->yaw;
+  msg_out.controls[3] = msg->throttle;
+
+  ph_mavros_actuator_control_.publish(msg_out);
+
+  return true;
 }
 
 //}

@@ -3,7 +3,7 @@ hw_interface_plugin: "mrs_uav_px4_api/Api"
 mavros_timeout: 1.0 # [s]
 
 inputs:
-  control_group: false
+  control_group: true
   attitude:      true
   attitude_rate: true
 
@@ -21,6 +21,7 @@ topics:
     imu: "mavros/imu/data"
     magnetometer_heading: "mavros/global_position/compass_hdg"
     attitude_target: "mavros/setpoint_raw/attitude"
+    actuator_control: "mavros/actuator_control"
     rc: "mavros/rc/in"
     altitude: "mavros/altitude"
     battery: "mavros/battery"
