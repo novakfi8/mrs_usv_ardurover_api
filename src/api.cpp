@@ -191,7 +191,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
   param_loader.loadParam("topics/mavros/battery", _topic_mavros_battery_);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[MrsUavHwDummyApi]: Could not load all parameters!");
+    ROS_ERROR("[MrsUavTelloApi]: Could not load all parameters!");
     ros::shutdown();
   }
 
@@ -242,7 +242,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
 
   // | ----------------------- finish init ---------------------- |
 
-  ROS_INFO("[MrsUavHwDummyApi]: initialized");
+  ROS_INFO("[MrsUavTelloApi]: initialized");
 
   is_initialized_ = true;
 }
