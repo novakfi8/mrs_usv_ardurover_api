@@ -52,8 +52,8 @@ public:
 
   // | --------------------- status methods --------------------- |
 
-  mrs_msgs::HwApiDiagnostics getDiagnostics();
-  mrs_msgs::HwApiMode        getMode();
+  mrs_msgs::HwApiStatus       getStatus();
+  mrs_msgs::HwApiCapabilities getCapabilities();
 
   // | --------------------- topic callbacks -------------------- |
 
@@ -79,9 +79,7 @@ private:
 
   // | ----------------------- parameters ----------------------- |
 
-  bool _input_control_group_;
-  bool _input_attitude_rate_;
-  bool _input_attitude_;
+  mrs_msgs::HwApiCapabilities _capabilities_;
 
   std::string _service_mavros_command_long_;
   std::string _service_mavros_mode_;
@@ -148,7 +146,7 @@ private:
   std::string       mode_;
   std::atomic<bool> armed_     = false;
   std::atomic<bool> connected_ = false;
-  std::mutex        mutex_diagnostics_;
+  std::mutex        mutex_status_;
 };
 
 //}
@@ -166,15 +164,30 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
 
   common_handlers_ = common_handlers;
 
+  _capabilities_.api_name = "Px4Api";
+
   // | ------------------- loading parameters ------------------- |
 
   mrs_lib::ParamLoader param_loader(nh_, "MrsUavHwApi");
 
   param_loader.loadParam("mavros_timeout", _mavros_timeout_);
 
-  param_loader.loadParam("inputs/control_group", _input_control_group_);
-  param_loader.loadParam("inputs/attitude_rate", _input_attitude_rate_);
-  param_loader.loadParam("inputs/attitude", _input_attitude_);
+  param_loader.loadParam("inputs/control_group", (bool &)_capabilities_.accepts_control_group_cmd);
+  param_loader.loadParam("inputs/attitude_rate", (bool &)_capabilities_.accepts_attitude_rate_cmd);
+  param_loader.loadParam("inputs/attitude", (bool &)_capabilities_.accepts_attitude_cmd);
+
+  param_loader.loadParam("outputs/distance_sensor", (bool &)_capabilities_.produces_distance_sensor);
+  param_loader.loadParam("outputs/gnss", (bool &)_capabilities_.produces_gnss);
+  param_loader.loadParam("outputs/imu", (bool &)_capabilities_.produces_imu);
+  param_loader.loadParam("outputs/altitude", (bool &)_capabilities_.produces_altitude);
+  param_loader.loadParam("outputs/magnetometer_heading", (bool &)_capabilities_.produces_magnetometer_heading);
+  param_loader.loadParam("outputs/rc_channels", (bool &)_capabilities_.produces_rc_channels);
+  param_loader.loadParam("outputs/battery_state", (bool &)_capabilities_.produces_battery_state);
+  param_loader.loadParam("outputs/position", (bool &)_capabilities_.produces_position);
+  param_loader.loadParam("outputs/orientation", (bool &)_capabilities_.produces_orientation);
+  param_loader.loadParam("outputs/velocity", (bool &)_capabilities_.produces_velocity);
+  param_loader.loadParam("outputs/angular_velocity", (bool &)_capabilities_.produces_angular_velocity);
+  param_loader.loadParam("outputs/odometry", (bool &)_capabilities_.produces_odometry);
 
   param_loader.loadParam("services/mavros/command_long", _service_mavros_command_long_);
   param_loader.loadParam("services/mavros/mode", _service_mavros_mode_);
@@ -249,56 +262,35 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
 
 //}
 
-/* getDiagnostics() //{ */
+/* getStatus() //{ */
 
-mrs_msgs::HwApiDiagnostics MrsUavPx4Api::getDiagnostics() {
+mrs_msgs::HwApiStatus MrsUavPx4Api::getStatus() {
 
-  mrs_msgs::HwApiDiagnostics diag;
+  mrs_msgs::HwApiStatus status;
 
-  diag.stamp = ros::Time::now();
+  status.stamp = ros::Time::now();
 
   {
-    std::scoped_lock lock(mutex_diagnostics_);
+    std::scoped_lock lock(mutex_status_);
 
-    diag.armed     = armed_;
-    diag.offboard  = offboard_;
-    diag.connected = connected_;
-    diag.mode      = mode_;
+    status.armed     = armed_;
+    status.offboard  = offboard_;
+    status.connected = connected_;
+    status.mode      = mode_;
   }
 
-  return diag;
+  return status;
 }
 
 //}
 
-/* getMode() //{ */
+/* getCapabilities() //{ */
 
-mrs_msgs::HwApiMode MrsUavPx4Api::getMode() {
+mrs_msgs::HwApiCapabilities MrsUavPx4Api::getCapabilities() {
 
-  mrs_msgs::HwApiMode mode;
+  _capabilities_.stamp = ros::Time::now();
 
-  mode.api_name = "Px4Api";
-  mode.stamp    = ros::Time::now();
-
-  mode.accepts_actuator_cmd              = false;
-  mode.accepts_control_group_cmd         = _input_control_group_;
-  mode.accepts_attitude_rate_cmd         = _input_attitude_rate_;
-  mode.accepts_attitude_cmd              = _input_attitude_;
-  mode.accepts_acceleration_hdg_rate_cmd = false;
-  mode.accepts_acceleration_hdg_cmd      = false;
-  mode.accepts_velocity_hdg_rate_cmd     = false;
-  mode.accepts_velocity_hdg_cmd          = false;
-  mode.accepts_position_cmd              = false;
-
-  mode.produces_distance_sensor      = true;
-  mode.produces_gnss                 = true;
-  mode.produces_imu                  = true;
-  mode.produces_altitude             = true;
-  mode.produces_magnetometer_heading = true;
-  mode.produces_odometry_local       = true;
-  mode.produces_rc_channels          = true;
-
-  return mode;
+  return _capabilities_;
 }
 
 //}
@@ -320,7 +312,7 @@ bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting control group cmd");
 
-  if (!_input_control_group_) {
+  if (!_capabilities_.accepts_control_group_cmd) {
     ROS_ERROR("[MrsUavPx4Api]: the control group input is not enabled in the config file");
     return false;
   }
@@ -350,7 +342,7 @@ bool MrsUavPx4Api::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude rate cmd");
 
-  if (!_input_attitude_rate_) {
+  if (!_capabilities_.accepts_attitude_rate_cmd) {
     ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: attitude rate input is not enabled in the config file");
     return false;
   }
@@ -380,7 +372,7 @@ bool MrsUavPx4Api::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandle
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude cmd");
 
-  if (!_input_attitude_) {
+  if (!_capabilities_.accepts_attitude_cmd) {
     ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: attitude input is not enabled in the config file");
     return false;
   }
@@ -581,7 +573,7 @@ void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string &topic,
   if (time.toSec() > _mavros_timeout_) {
 
     {
-      std::scoped_lock lock(mutex_diagnostics_);
+      std::scoped_lock lock(mutex_status_);
 
       connected_ = false;
       offboard_  = false;
@@ -634,7 +626,7 @@ void MrsUavPx4Api::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::St
   mavros_msgs::StateConstPtr state = wrp.getMsg();
 
   {
-    std::scoped_lock lock(mutex_diagnostics_);
+    std::scoped_lock lock(mutex_status_);
 
     offboard_  = state->mode == "OFFBOARD";
     armed_     = state->armed;
@@ -644,19 +636,19 @@ void MrsUavPx4Api::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::St
 
   // | ----------------- publish the diagnostics ---------------- |
 
-  mrs_msgs::HwApiDiagnostics diag;
+  mrs_msgs::HwApiStatus status;
 
   {
-    std::scoped_lock lock(mutex_diagnostics_);
+    std::scoped_lock lock(mutex_status_);
 
-    diag.stamp     = ros::Time::now();
-    diag.armed     = armed_;
-    diag.offboard  = offboard_;
-    diag.connected = connected_;
-    diag.mode      = mode_;
+    status.stamp     = ros::Time::now();
+    status.armed     = armed_;
+    status.offboard  = offboard_;
+    status.connected = connected_;
+    status.mode      = mode_;
   }
 
-  common_handlers_->publishers.publishDiagnostics(diag);
+  common_handlers_->publishers.publishStatus(status);
 }
 
 //}
@@ -669,22 +661,65 @@ void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odo
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting local odometry");
-
-  // | --------------- publish the local odometry --------------- |
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting Mavros's local odometry");
 
   nav_msgs::OdometryConstPtr odom = wrp.getMsg();
 
-  common_handlers_->publishers.publishOdometryLocal(*odom);
+  // | -------------------- publish position -------------------- |
 
-  // | ----------------- publish the orientation ---------------- |
+  if (_capabilities_.produces_position) {
 
-  geometry_msgs::QuaternionStamped quat;
+    geometry_msgs::PointStamped position;
 
-  quat.header     = odom->header;
-  quat.quaternion = odom->pose.pose.orientation;
+    position.header = odom->header;
+    position.point  = odom->pose.pose.position;
 
-  common_handlers_->publishers.publishOrientation(quat);
+    common_handlers_->publishers.publishPosition(position);
+  }
+
+  // | ------------------- publish orientation ------------------ |
+
+  if (_capabilities_.produces_orientation) {
+
+    geometry_msgs::QuaternionStamped orientation;
+
+    orientation.header     = odom->header;
+    orientation.quaternion = odom->pose.pose.orientation;
+
+    common_handlers_->publishers.publishOrientation(orientation);
+  }
+
+  // | -------------------- publish velocity -------------------- |
+
+  if (_capabilities_.produces_velocity) {
+
+    geometry_msgs::Vector3Stamped velocity;
+
+    velocity.header.stamp    = odom->header.stamp;
+    velocity.header.frame_id = odom->child_frame_id;
+    velocity.vector          = odom->twist.twist.linear;
+
+    common_handlers_->publishers.publishVelocity(velocity);
+  }
+
+  // | ---------------- publish angular velocity ---------------- |
+
+  if (_capabilities_.produces_angular_velocity) {
+
+    geometry_msgs::Vector3Stamped angular_velocity;
+
+    angular_velocity.header.stamp    = odom->header.stamp;
+    angular_velocity.header.frame_id = odom->child_frame_id;
+    angular_velocity.vector          = odom->twist.twist.angular;
+
+    common_handlers_->publishers.publishAngularVelocity(angular_velocity);
+  }
+
+  // | -------------------- publish odometry -------------------- |
+
+  if (_capabilities_.produces_odometry) {
+    common_handlers_->publishers.publishOdometry(*odom);
+  }
 }
 
 //}
@@ -699,9 +734,12 @@ void MrsUavPx4Api::callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavS
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting NavSat fix");
 
-  sensor_msgs::NavSatFixConstPtr gnss = wrp.getMsg();
+  if (_capabilities_.produces_gnss) {
 
-  common_handlers_->publishers.publishGNSS(*gnss);
+    sensor_msgs::NavSatFixConstPtr gnss = wrp.getMsg();
+
+    common_handlers_->publishers.publishGNSS(*gnss);
+  }
 }
 
 //}
@@ -716,9 +754,12 @@ void MrsUavPx4Api::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs:
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting distnace sensor");
 
-  sensor_msgs::RangeConstPtr range = wrp.getMsg();
+  if (_capabilities_.produces_distance_sensor) {
 
-  common_handlers_->publishers.publishDistanceSensor(*range);
+    sensor_msgs::RangeConstPtr range = wrp.getMsg();
+
+    common_handlers_->publishers.publishDistanceSensor(*range);
+  }
 }
 
 //}
@@ -733,9 +774,12 @@ void MrsUavPx4Api::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu> &wrp)
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting IMU");
 
-  sensor_msgs::ImuConstPtr imu = wrp.getMsg();
+  if (_capabilities_.produces_imu) {
 
-  common_handlers_->publishers.publishIMU(*imu);
+    sensor_msgs::ImuConstPtr imu = wrp.getMsg();
+
+    common_handlers_->publishers.publishIMU(*imu);
+  }
 }
 
 //}
@@ -750,13 +794,16 @@ void MrsUavPx4Api::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Floa
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting magnetometer heading");
 
-  std_msgs::Float64ConstPtr mag = wrp.getMsg();
+  if (_capabilities_.produces_magnetometer_heading) {
 
-  mrs_msgs::Float64Stamped mag_out;
-  mag_out.header.stamp = ros::Time::now();
-  mag_out.value        = mag->data;
+    std_msgs::Float64ConstPtr mag = wrp.getMsg();
 
-  common_handlers_->publishers.publishMagnetometerHeading(mag_out);
+    mrs_msgs::Float64Stamped mag_out;
+    mag_out.header.stamp = ros::Time::now();
+    mag_out.value        = mag->data;
+
+    common_handlers_->publishers.publishMagnetometerHeading(mag_out);
+  }
 }
 
 //}
@@ -771,17 +818,20 @@ void MrsUavPx4Api::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp)
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting RC");
 
-  mavros_msgs::RCInConstPtr msg_in = wrp.getMsg();
+  if (_capabilities_.produces_rc_channels) {
 
-  mrs_msgs::HwApiRcChannels rc_out;
+    mavros_msgs::RCInConstPtr msg_in = wrp.getMsg();
 
-  rc_out.stamp = msg_in->header.stamp;
+    mrs_msgs::HwApiRcChannels rc_out;
 
-  for (int i = 0; i < msg_in->channels.size(); i++) {
-    rc_out.channels.push_back(RCChannelToRange(msg_in->channels[i]));
+    rc_out.stamp = msg_in->header.stamp;
+
+    for (int i = 0; i < msg_in->channels.size(); i++) {
+      rc_out.channels.push_back(RCChannelToRange(msg_in->channels[i]));
+    }
+
+    common_handlers_->publishers.publishRcChannels(rc_out);
   }
-
-  common_handlers_->publishers.publishRcChannels(rc_out);
 }
 
 //}
@@ -796,14 +846,17 @@ void MrsUavPx4Api::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altit
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting Altitude");
 
-  mavros_msgs::AltitudeConstPtr altitude_in = wrp.getMsg();
+  if (_capabilities_.produces_altitude) {
 
-  mrs_msgs::HwApiAltitude altitude_out;
+    mavros_msgs::AltitudeConstPtr altitude_in = wrp.getMsg();
 
-  altitude_out.stamp = altitude_in->header.stamp;
-  altitude_out.amsl  = altitude_in->amsl;
+    mrs_msgs::HwApiAltitude altitude_out;
 
-  common_handlers_->publishers.publishAltitude(altitude_out);
+    altitude_out.stamp = altitude_in->header.stamp;
+    altitude_out.amsl  = altitude_in->amsl;
+
+    common_handlers_->publishers.publishAltitude(altitude_out);
+  }
 }
 
 //}
@@ -818,9 +871,12 @@ void MrsUavPx4Api::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::Batter
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting battery");
 
-  sensor_msgs::BatteryStateConstPtr msg = wrp.getMsg();
+  if (_capabilities_.produces_battery_state) {
 
-  common_handlers_->publishers.publishBatteryState(*msg);
+    sensor_msgs::BatteryStateConstPtr msg = wrp.getMsg();
+
+    common_handlers_->publishers.publishBatteryState(*msg);
+  }
 }
 
 //}

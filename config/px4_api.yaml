@@ -7,6 +7,20 @@ inputs:
   attitude:      true
   attitude_rate: true
 
+outputs:
+  distance_sensor: true
+  gnss: true
+  imu: true
+  altitude: true
+  magnetometer_heading: true
+  rc_channels: true
+  battery_state: true
+  position: true
+  orientation: true
+  velocity: true
+  angular_velocity: true
+  odometry: true
+
 services:
   mavros:
     command_long: "mavros/cmd/command"
