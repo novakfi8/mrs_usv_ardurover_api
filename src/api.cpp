@@ -67,6 +67,8 @@ public:
   bool callbackVelocityHdgCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgCmd> &wrp);
   bool callbackPositionCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp);
 
+  void callbackTrackerCmd(mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand> &wrp);
+
   // | -------------------- service callbacks ------------------- |
 
   std::tuple<bool, std::string> callbackArming(const bool &request);
@@ -451,6 +453,13 @@ bool MrsUavPx4Api::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHandle
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting position cmd");
 
   return false;
+}
+
+//}
+
+/* callbackTrackerCmd() //{ */
+
+void MrsUavPx4Api::callbackTrackerCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand> &wrp) {
 }
 
 //}
