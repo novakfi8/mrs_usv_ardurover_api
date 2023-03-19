@@ -2,6 +2,13 @@ hw_interface_plugin: "mrs_uav_px4_api/Api"
 
 mavros_timeout: 1.0 # [s]
 
+simulated_rtk:
+  utm_zone: "32T"
+  utm_x: 465710.758973
+  utm_y: 5249465.43086
+  amsl: 340.0
+  simulate_jumps: true
+
 inputs:
   control_group: false
   attitude_rate: true
@@ -10,6 +17,7 @@ inputs:
 outputs:
   distance_sensor: true
   gnss: true
+  rtk: true
   imu: true
   altitude: true
   magnetometer_heading: true
@@ -20,22 +28,4 @@ outputs:
   velocity: true
   angular_velocity: true
   odometry: true
-
-services:
-  mavros:
-    command_long: "mavros/cmd/command"
-    mode: "mavros/set_mode"
-
-topics:
-  mavros:
-    state: "mavros/state"
-    gps: "mavros/global_position/global"
-    odometry_local: "mavros/local_position/odom"
-    distance_sensor: "garmin/range"
-    imu: "mavros/imu/data"
-    magnetometer_heading: "mavros/global_position/compass_hdg"
-    attitude_target: "mavros/setpoint_raw/attitude"
-    actuator_control: "mavros/actuator_control"
-    rc: "mavros/rc/in"
-    altitude: "mavros/altitude"
-    battery: "mavros/battery"
+  ground_truth: true

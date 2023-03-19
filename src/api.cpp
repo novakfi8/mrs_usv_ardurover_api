@@ -4,6 +4,10 @@
 
 #include <mrs_uav_hw_api/api.h>
 
+#include <std_srvs/Trigger.h>
+
+#include <mrs_msgs/Bestpos.h>
+
 #include <nav_msgs/Odometry.h>
 
 #include <mrs_lib/param_loader.h>
@@ -12,6 +16,7 @@
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/subscribe_handler.h>
 #include <mrs_lib/service_client_handler.h>
+#include <mrs_lib/gps_conversions.h>
 
 #include <std_msgs/Float64.h>
 
@@ -47,8 +52,8 @@ class MrsUavPx4Api : public mrs_uav_hw_api::MrsUavHwApi {
 public:
   ~MrsUavPx4Api(){};
 
-  void initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers, const std::string &topic_prefix,
-                  const std::string &uav_name);
+  void initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers, const std::string& topic_prefix,
+                  const std::string& uav_name);
 
   // | --------------------- status methods --------------------- |
 
@@ -57,21 +62,21 @@ public:
 
   // | --------------------- topic callbacks -------------------- |
 
-  bool callbackActuatorCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd> &wrp);
-  bool callbackControlGroupCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd> &wrp);
-  bool callbackAttitudeRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp);
-  bool callbackAttitudeCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd> &wrp);
-  bool callbackAccelerationHdgRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgRateCmd> &wrp);
-  bool callbackAccelerationHdgCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgCmd> &wrp);
-  bool callbackVelocityHdgRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgRateCmd> &wrp);
-  bool callbackVelocityHdgCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgCmd> &wrp);
-  bool callbackPositionCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp);
+  bool callbackActuatorCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd>& wrp);
+  bool callbackControlGroupCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd>& wrp);
+  bool callbackAttitudeRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd>& wrp);
+  bool callbackAttitudeCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd>& wrp);
+  bool callbackAccelerationHdgRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgRateCmd>& wrp);
+  bool callbackAccelerationHdgCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgCmd>& wrp);
+  bool callbackVelocityHdgRateCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgRateCmd>& wrp);
+  bool callbackVelocityHdgCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgCmd>& wrp);
+  bool callbackPositionCmd(mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd>& wrp);
 
-  void callbackTrackerCmd(mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand> &wrp);
+  void callbackTrackerCmd(mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand>& wrp);
 
   // | -------------------- service callbacks ------------------- |
 
-  std::tuple<bool, std::string> callbackArming(const bool &request);
+  std::tuple<bool, std::string> callbackArming(const bool& request);
   std::tuple<bool, std::string> callbackOffboard(void);
 
 private:
@@ -83,59 +88,78 @@ private:
 
   mrs_msgs::HwApiCapabilities _capabilities_;
 
-  std::string _service_mavros_command_long_;
-  std::string _service_mavros_mode_;
-
-  std::string _topic_mavros_state_;
-  std::string _topic_mavros_odometry_local_;
-  std::string _topic_mavros_gps_;
-  std::string _topic_mavros_distance_sensor_;
-  std::string _topic_mavros_imu_;
-  std::string _topic_mavros_magnetometer_heading_;
-  std::string _topic_mavros_attitude_target_;
-  std::string _topic_mavros_actuator_control;
-  std::string _topic_mavros_rc_;
-  std::string _topic_mavros_altitude_;
-  std::string _topic_mavros_battery_;
-
   double _mavros_timeout_;
+
+  bool _simulation_;
+
+  double      _sim_rtk_utm_x_;
+  double      _sim_rtk_utm_y_;
+  std::string _sim_rtk_utm_zone_;
+  double      _sim_rtk_amsl_;
+  bool        _sim_rtk_simulate_jumps_;
+
+  bool sim_rtk_random_jump_active_ = false;
+
+  double _sim_rtk_offset_x_       = 0;
+  double _sim_rtk_offset_y_       = 0;
+  double sim_rtk_jump_offset_     = 0;
+  double sim_rtk_random_jump_     = 0;
+  double sim_rtk_jump_hdg_offset_ = 0;
+
+  int    sim_rtk_until_next_jump_;
+  int    sim_rtk_until_jump_end_;
+  double sim_rtk_jump_amplitude_;
+
+  mrs_msgs::RtkFixType fix_type_;
+
+  mrs_msgs::RtkFixType sim_rtk_fix_type_;
 
   // | --------------------- service clients -------------------- |
 
   mrs_lib::ServiceClientHandler<mavros_msgs::CommandLong> sch_mavros_command_long_;
   mrs_lib::ServiceClientHandler<mavros_msgs::SetMode>     sch_mavros_mode_;
 
+  // | --------------------- service servers -------------------- |
+
+  bool emulateJump(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
+
   // | ----------------------- subscribers ---------------------- |
+
+  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_ground_truth_;
+  void                                          callbackGroundTruth(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
+
+  mrs_lib::SubscribeHandler<mrs_msgs::Bestpos> sh_rtk_;
+  void                                         callbackRTK(mrs_lib::SubscribeHandler<mrs_msgs::Bestpos>& wrp);
 
   mrs_lib::SubscribeHandler<mavros_msgs::State> sh_mavros_state_;
 
-  void   timeoutMavrosState(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
-  double RCChannelToRange(const double &rc_value);
-  void   callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State> &wrp);
+  void   timeoutMavrosState(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
+  double RCChannelToRange(const double& rc_value);
+  void   callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State>& wrp);
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odometry_local_;
-  void                                          callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odometry> &wrp);
+  void                                          callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
 
   mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_mavros_gps_;
-  void                                              callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> &wrp);
+  void                                              callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp);
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_mavros_distance_sensor_;
-  void                                          callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs::Range> &wrp);
+  void                                          callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs::Range>& wrp);
 
   mrs_lib::SubscribeHandler<sensor_msgs::Imu> sh_mavros_imu_;
-  void                                        callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu> &wrp);
+  void                                        callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu>& wrp);
 
   mrs_lib::SubscribeHandler<std_msgs::Float64> sh_mavros_magnetometer_heading_;
-  void                                         callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64> &wrp);
+  void                                         callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64>& wrp);
 
   mrs_lib::SubscribeHandler<mavros_msgs::RCIn> sh_mavros_rc_;
-  void                                         callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp);
+  void                                         callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn>& wrp);
 
   mrs_lib::SubscribeHandler<mavros_msgs::Altitude> sh_mavros_altitude_;
-  void                                             callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altitude> &wrp);
+  void                                             callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altitude>& wrp);
 
   mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> sh_mavros_battery_;
-  void                                                 callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> &wrp);
+  void                                                 callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>& wrp);
 
   // | ----------------------- publishers ----------------------- |
 
@@ -159,8 +183,8 @@ private:
 
 /* initialize() //{ */
 
-void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers,
-                              [[maybe_unused]] const std::string &topic_prefix, [[maybe_unused]] const std::string &uav_name) {
+void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers,
+                              [[maybe_unused]] const std::string& topic_prefix, [[maybe_unused]] const std::string& uav_name) {
 
   ros::NodeHandle nh_(parent_nh);
 
@@ -174,46 +198,42 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
 
   param_loader.loadParam("mavros_timeout", _mavros_timeout_);
 
-  param_loader.loadParam("inputs/control_group", (bool &)_capabilities_.accepts_control_group_cmd);
-  param_loader.loadParam("inputs/attitude_rate", (bool &)_capabilities_.accepts_attitude_rate_cmd);
-  param_loader.loadParam("inputs/attitude", (bool &)_capabilities_.accepts_attitude_cmd);
+  param_loader.loadParam("simulation", _simulation_);
 
-  param_loader.loadParam("outputs/distance_sensor", (bool &)_capabilities_.produces_distance_sensor);
-  param_loader.loadParam("outputs/gnss", (bool &)_capabilities_.produces_gnss);
-  param_loader.loadParam("outputs/imu", (bool &)_capabilities_.produces_imu);
-  param_loader.loadParam("outputs/altitude", (bool &)_capabilities_.produces_altitude);
-  param_loader.loadParam("outputs/magnetometer_heading", (bool &)_capabilities_.produces_magnetometer_heading);
-  param_loader.loadParam("outputs/rc_channels", (bool &)_capabilities_.produces_rc_channels);
-  param_loader.loadParam("outputs/battery_state", (bool &)_capabilities_.produces_battery_state);
-  param_loader.loadParam("outputs/position", (bool &)_capabilities_.produces_position);
-  param_loader.loadParam("outputs/orientation", (bool &)_capabilities_.produces_orientation);
-  param_loader.loadParam("outputs/velocity", (bool &)_capabilities_.produces_velocity);
-  param_loader.loadParam("outputs/angular_velocity", (bool &)_capabilities_.produces_angular_velocity);
-  param_loader.loadParam("outputs/odometry", (bool &)_capabilities_.produces_odometry);
+  param_loader.loadParam("simulated_rtk/utm_x", _sim_rtk_utm_x_);
+  param_loader.loadParam("simulated_rtk/utm_y", _sim_rtk_utm_y_);
+  param_loader.loadParam("simulated_rtk/utm_zone", _sim_rtk_utm_zone_);
+  param_loader.loadParam("simulated_rtk/amsl", _sim_rtk_amsl_);
+  param_loader.loadParam("simulated_rtk/simulate_jumps", _sim_rtk_simulate_jumps_);
 
-  param_loader.loadParam("services/mavros/command_long", _service_mavros_command_long_);
-  param_loader.loadParam("services/mavros/mode", _service_mavros_mode_);
-  param_loader.loadParam("topics/mavros/state", _topic_mavros_state_);
-  param_loader.loadParam("topics/mavros/odometry_local", _topic_mavros_odometry_local_);
-  param_loader.loadParam("topics/mavros/gps", _topic_mavros_gps_);
-  param_loader.loadParam("topics/mavros/distance_sensor", _topic_mavros_distance_sensor_);
-  param_loader.loadParam("topics/mavros/imu", _topic_mavros_imu_);
-  param_loader.loadParam("topics/mavros/magnetometer_heading", _topic_mavros_magnetometer_heading_);
-  param_loader.loadParam("topics/mavros/attitude_target", _topic_mavros_attitude_target_);
-  param_loader.loadParam("topics/mavros/actuator_control", _topic_mavros_actuator_control);
-  param_loader.loadParam("topics/mavros/rc", _topic_mavros_rc_);
-  param_loader.loadParam("topics/mavros/altitude", _topic_mavros_altitude_);
-  param_loader.loadParam("topics/mavros/battery", _topic_mavros_battery_);
+  param_loader.loadParam("inputs/control_group", (bool&)_capabilities_.accepts_control_group_cmd);
+  param_loader.loadParam("inputs/attitude_rate", (bool&)_capabilities_.accepts_attitude_rate_cmd);
+  param_loader.loadParam("inputs/attitude", (bool&)_capabilities_.accepts_attitude_cmd);
+
+  param_loader.loadParam("outputs/distance_sensor", (bool&)_capabilities_.produces_distance_sensor);
+  param_loader.loadParam("outputs/gnss", (bool&)_capabilities_.produces_gnss);
+  param_loader.loadParam("outputs/rtk", (bool&)_capabilities_.produces_rtk);
+  param_loader.loadParam("outputs/ground_truth", (bool&)_capabilities_.produces_ground_truth);
+  param_loader.loadParam("outputs/imu", (bool&)_capabilities_.produces_imu);
+  param_loader.loadParam("outputs/altitude", (bool&)_capabilities_.produces_altitude);
+  param_loader.loadParam("outputs/magnetometer_heading", (bool&)_capabilities_.produces_magnetometer_heading);
+  param_loader.loadParam("outputs/rc_channels", (bool&)_capabilities_.produces_rc_channels);
+  param_loader.loadParam("outputs/battery_state", (bool&)_capabilities_.produces_battery_state);
+  param_loader.loadParam("outputs/position", (bool&)_capabilities_.produces_position);
+  param_loader.loadParam("outputs/orientation", (bool&)_capabilities_.produces_orientation);
+  param_loader.loadParam("outputs/velocity", (bool&)_capabilities_.produces_velocity);
+  param_loader.loadParam("outputs/angular_velocity", (bool&)_capabilities_.produces_angular_velocity);
+  param_loader.loadParam("outputs/odometry", (bool&)_capabilities_.produces_odometry);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[MrsUavTelloApi]: Could not load all parameters!");
+    ROS_ERROR("[MrsUavPx4Api]: Could not load all parameters!");
     ros::shutdown();
   }
 
   // | --------------------- service clients -------------------- |
 
-  sch_mavros_command_long_ = mrs_lib::ServiceClientHandler<mavros_msgs::CommandLong>(nh_, topic_prefix + "/" + _service_mavros_command_long_);
-  sch_mavros_mode_         = mrs_lib::ServiceClientHandler<mavros_msgs::SetMode>(nh_, topic_prefix + "/" + _service_mavros_mode_);
+  sch_mavros_command_long_ = mrs_lib::ServiceClientHandler<mavros_msgs::CommandLong>(nh_, "mavros_cmd_out");
+  sch_mavros_mode_         = mrs_lib::ServiceClientHandler<mavros_msgs::SetMode>(nh_, "mavros_set_mode_out");
 
   // | ----------------------- subscribers ---------------------- |
 
@@ -226,38 +246,43 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle &parent_nh, std::shared_ptr<
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_mavros_state_ = mrs_lib::SubscribeHandler<mavros_msgs::State>(shopts, topic_prefix + "/" + _topic_mavros_state_, ros::Duration(0.05),
-                                                                   &MrsUavPx4Api::timeoutMavrosState, this, &MrsUavPx4Api::callbackMavrosState, this);
+  if (_simulation_) {
+    sh_ground_truth_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "ground_truth_in", &MrsUavPx4Api::callbackGroundTruth, this);
+  }
 
-  sh_mavros_odometry_local_ =
-      mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, topic_prefix + "/" + _topic_mavros_odometry_local_, &MrsUavPx4Api::callbackOdometryLocal, this);
+  if (!_simulation_) {
+    sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::Bestpos>(shopts, "rtk_in", &MrsUavPx4Api::callbackRTK, this);
+  }
 
-  sh_mavros_gps_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, topic_prefix + "/" + _topic_mavros_gps_, &MrsUavPx4Api::callbackNavsatFix, this);
+  sh_mavros_state_ = mrs_lib::SubscribeHandler<mavros_msgs::State>(shopts, "mavros_state_in", ros::Duration(0.05), &MrsUavPx4Api::timeoutMavrosState, this,
+                                                                   &MrsUavPx4Api::callbackMavrosState, this);
 
-  sh_mavros_distance_sensor_ =
-      mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, topic_prefix + "/" + _topic_mavros_distance_sensor_, &MrsUavPx4Api::callbackDistanceSensor, this);
+  sh_mavros_odometry_local_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_local_position_in", &MrsUavPx4Api::callbackOdometryLocal, this);
 
-  sh_mavros_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, topic_prefix + "/" + _topic_mavros_imu_, &MrsUavPx4Api::callbackImu, this);
+  sh_mavros_gps_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, "mavros_global_position_in", &MrsUavPx4Api::callbackNavsatFix, this);
 
-  sh_mavros_magnetometer_heading_ =
-      mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, topic_prefix + "/" + _topic_mavros_magnetometer_heading_, &MrsUavPx4Api::callbackMagnetometer, this);
+  sh_mavros_distance_sensor_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, "mavros_garmin_in", &MrsUavPx4Api::callbackDistanceSensor, this);
 
-  sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, topic_prefix + "/" + _topic_mavros_rc_, &MrsUavPx4Api::callbackRC, this);
+  sh_mavros_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, "mavros_imu_in", &MrsUavPx4Api::callbackImu, this);
 
-  sh_mavros_altitude_ =
-      mrs_lib::SubscribeHandler<mavros_msgs::Altitude>(shopts, topic_prefix + "/" + _topic_mavros_altitude_, &MrsUavPx4Api::callbackAltitude, this);
+  sh_mavros_magnetometer_heading_ = mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, "mavros_magnetometer_in", &MrsUavPx4Api::callbackMagnetometer, this);
 
-  sh_mavros_battery_ =
-      mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>(shopts, topic_prefix + "/" + _topic_mavros_battery_, &MrsUavPx4Api::callbackBattery, this);
+  sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, "mavros_rc_in", &MrsUavPx4Api::callbackRC, this);
+
+  sh_mavros_altitude_ = mrs_lib::SubscribeHandler<mavros_msgs::Altitude>(shopts, "mavros_altitude_in", &MrsUavPx4Api::callbackAltitude, this);
+
+  sh_mavros_battery_ = mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>(shopts, "mavros_battery_in", &MrsUavPx4Api::callbackBattery, this);
 
   // | ----------------------- publishers ----------------------- |
 
-  ph_mavros_attitude_target_  = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, topic_prefix + "/" + _topic_mavros_attitude_target_, 1);
-  ph_mavros_actuator_control_ = mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl>(nh_, topic_prefix + "/" + _topic_mavros_actuator_control, 1);
+  ph_mavros_attitude_target_  = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, "mavros_attitude_setpoint_out", 1);
+  ph_mavros_actuator_control_ = mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl>(nh_, "mavros_actuator_control_out", 1);
 
   // | ----------------------- finish init ---------------------- |
 
-  ROS_INFO("[MrsUavTelloApi]: initialized");
+  fix_type_.fix_type = mrs_msgs::RtkFixType::RTK_FIX;
+
+  ROS_INFO("[MrsUavPx4Api]: initialized");
 
   is_initialized_ = true;
 }
@@ -299,7 +324,7 @@ mrs_msgs::HwApiCapabilities MrsUavPx4Api::getCapabilities() {
 
 /* callbackControlActuatorCmd() //{ */
 
-bool MrsUavPx4Api::callbackActuatorCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd> &wrp) {
+bool MrsUavPx4Api::callbackActuatorCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiActuatorCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting actuator cmd");
 
@@ -310,7 +335,7 @@ bool MrsUavPx4Api::callbackActuatorCmd([[maybe_unused]] mrs_lib::SubscribeHandle
 
 /* callbackControlGroupCmd() //{ */
 
-bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd> &wrp) {
+bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiControlGroupCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting control group cmd");
 
@@ -340,7 +365,7 @@ bool MrsUavPx4Api::callbackControlGroupCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
 /* callbackAttitudeRateCmd() //{ */
 
-bool MrsUavPx4Api::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd> &wrp) {
+bool MrsUavPx4Api::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeRateCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude rate cmd");
 
@@ -370,7 +395,7 @@ bool MrsUavPx4Api::callbackAttitudeRateCmd([[maybe_unused]] mrs_lib::SubscribeHa
 
 /* callbackAttitudeCmd() //{ */
 
-bool MrsUavPx4Api::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd> &wrp) {
+bool MrsUavPx4Api::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAttitudeCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude cmd");
 
@@ -404,7 +429,7 @@ bool MrsUavPx4Api::callbackAttitudeCmd([[maybe_unused]] mrs_lib::SubscribeHandle
 
 /* callbackAccelerationHdgRateCmd() //{ */
 
-bool MrsUavPx4Api::callbackAccelerationHdgRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgRateCmd> &wrp) {
+bool MrsUavPx4Api::callbackAccelerationHdgRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgRateCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration+hdg rate cmd");
 
@@ -415,7 +440,7 @@ bool MrsUavPx4Api::callbackAccelerationHdgRateCmd([[maybe_unused]] mrs_lib::Subs
 
 /* callbackAccelerationHdgCmd() //{ */
 
-bool MrsUavPx4Api::callbackAccelerationHdgCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgCmd> &wrp) {
+bool MrsUavPx4Api::callbackAccelerationHdgCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiAccelerationHdgCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration+hdg cmd");
 
@@ -426,7 +451,7 @@ bool MrsUavPx4Api::callbackAccelerationHdgCmd([[maybe_unused]] mrs_lib::Subscrib
 
 /* callbackVelocityHdgRateCmd() //{ */
 
-bool MrsUavPx4Api::callbackVelocityHdgRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgRateCmd> &wrp) {
+bool MrsUavPx4Api::callbackVelocityHdgRateCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgRateCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity+hdg rate cmd");
 
@@ -437,7 +462,7 @@ bool MrsUavPx4Api::callbackVelocityHdgRateCmd([[maybe_unused]] mrs_lib::Subscrib
 
 /* callbackVelocityHdgCmd() //{ */
 
-bool MrsUavPx4Api::callbackVelocityHdgCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgCmd> &wrp) {
+bool MrsUavPx4Api::callbackVelocityHdgCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiVelocityHdgCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity+hdg  cmd");
 
@@ -448,7 +473,7 @@ bool MrsUavPx4Api::callbackVelocityHdgCmd([[maybe_unused]] mrs_lib::SubscribeHan
 
 /* callbackPositionCmd() //{ */
 
-bool MrsUavPx4Api::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd> &wrp) {
+bool MrsUavPx4Api::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::HwApiPositionCmd>& wrp) {
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting position cmd");
 
@@ -459,14 +484,14 @@ bool MrsUavPx4Api::callbackPositionCmd([[maybe_unused]] mrs_lib::SubscribeHandle
 
 /* callbackTrackerCmd() //{ */
 
-void MrsUavPx4Api::callbackTrackerCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand> &wrp) {
+void MrsUavPx4Api::callbackTrackerCmd([[maybe_unused]] mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand>& wrp) {
 }
 
 //}
 
 /* callbackArming() //{ */
 
-std::tuple<bool, std::string> MrsUavPx4Api::callbackArming([[maybe_unused]] const bool &request) {
+std::tuple<bool, std::string> MrsUavPx4Api::callbackArming([[maybe_unused]] const bool& request) {
 
   std::stringstream ss;
 
@@ -567,7 +592,7 @@ std::tuple<bool, std::string> MrsUavPx4Api::callbackOffboard(void) {
 
 /* timeoutMavrosState() //{ */
 
-void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string &topic, const ros::Time &last_msg, [[maybe_unused]] const int n_pubs) {
+void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string& topic, const ros::Time& last_msg, [[maybe_unused]] const int n_pubs) {
 
   if (!is_initialized_) {
     return;
@@ -605,7 +630,7 @@ void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string &topic,
 
 /* RCChannelToRange() //{ */
 
-double MrsUavPx4Api::RCChannelToRange(const double &rc_value) {
+double MrsUavPx4Api::RCChannelToRange(const double& rc_value) {
 
   double tmp_0_to_1 = (rc_value - double(PWM_MIN)) / (double(PWM_RANGE));
 
@@ -624,7 +649,7 @@ double MrsUavPx4Api::RCChannelToRange(const double &rc_value) {
 
 /* //{ callbackMavrosState() */
 
-void MrsUavPx4Api::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State> &wrp) {
+void MrsUavPx4Api::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::State>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -664,7 +689,7 @@ void MrsUavPx4Api::callbackMavrosState(mrs_lib::SubscribeHandler<mavros_msgs::St
 
 /* callbackOdometryLocal() //{ */
 
-void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odometry> &wrp) {
+void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -735,7 +760,7 @@ void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odo
 
 /* callbackNavsatFix() //{ */
 
-void MrsUavPx4Api::callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> &wrp) {
+void MrsUavPx4Api::callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -755,7 +780,7 @@ void MrsUavPx4Api::callbackNavsatFix(mrs_lib::SubscribeHandler<sensor_msgs::NavS
 
 /* callbackDistanceSensor() //{ */
 
-void MrsUavPx4Api::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs::Range> &wrp) {
+void MrsUavPx4Api::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs::Range>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -775,7 +800,7 @@ void MrsUavPx4Api::callbackDistanceSensor(mrs_lib::SubscribeHandler<sensor_msgs:
 
 /* callbackImu() //{ */
 
-void MrsUavPx4Api::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu> &wrp) {
+void MrsUavPx4Api::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -795,7 +820,7 @@ void MrsUavPx4Api::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu> &wrp)
 
 /* callbackCompass() //{ */
 
-void MrsUavPx4Api::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64> &wrp) {
+void MrsUavPx4Api::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -819,7 +844,7 @@ void MrsUavPx4Api::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Floa
 
 /* callbackRC() //{ */
 
-void MrsUavPx4Api::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp) {
+void MrsUavPx4Api::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -847,7 +872,7 @@ void MrsUavPx4Api::callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn> &wrp)
 
 /* callbackAltitude() //{ */
 
-void MrsUavPx4Api::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altitude> &wrp) {
+void MrsUavPx4Api::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altitude>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -872,7 +897,7 @@ void MrsUavPx4Api::callbackAltitude(mrs_lib::SubscribeHandler<mavros_msgs::Altit
 
 /* callbackBattery() //{ */
 
-void MrsUavPx4Api::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState> &wrp) {
+void MrsUavPx4Api::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>& wrp) {
 
   if (!is_initialized_) {
     return;
@@ -886,6 +911,162 @@ void MrsUavPx4Api::callbackBattery(mrs_lib::SubscribeHandler<sensor_msgs::Batter
 
     common_handlers_->publishers.publishBatteryState(*msg);
   }
+}
+
+//}
+
+/* callbackGroundTruth() //{ */
+
+void MrsUavPx4Api::callbackGroundTruth(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting ground truth");
+
+  nav_msgs::OdometryConstPtr odom = wrp.getMsg();
+
+  // | ------------------ publish ground truth ------------------ |
+
+  if (_capabilities_.produces_ground_truth) {
+    common_handlers_->publishers.publishGroundTruth(*odom);
+  }
+
+  if (_capabilities_.produces_rtk) {
+
+    double lat;
+    double lon;
+
+    mrs_lib::UTMtoLL(odom->pose.pose.position.y + _sim_rtk_utm_y_, odom->pose.pose.position.x + _sim_rtk_utm_x_, _sim_rtk_utm_zone_, lat, lon);
+
+    sensor_msgs::NavSatFix gnss;
+
+    gnss.header.stamp = odom->header.stamp;
+
+    gnss.latitude  = lat;
+    gnss.longitude = lon;
+    gnss.altitude  = odom->pose.pose.position.z + _sim_rtk_amsl_;
+
+    mrs_msgs::RtkGps rtk;
+
+    rtk.header.stamp    = odom->header.stamp;
+    rtk.header.frame_id = "gps";
+
+    rtk.gps.latitude      = lat;
+    rtk.gps.longitude     = lon;
+    rtk.gps.altitude      = odom->pose.pose.position.z + _sim_rtk_amsl_;
+    rtk.gps.covariance[0] = std::pow(0.1, 2);
+    rtk.gps.covariance[4] = std::pow(0.1, 2);
+    rtk.gps.covariance[8] = std::pow(0.1, 2);
+
+    rtk.fix_type.fix_type = rtk.fix_type.RTK_FIX;
+
+    rtk.status.status = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
+
+    common_handlers_->publishers.publishRTK(rtk);
+  }
+}
+
+//}
+
+/* callbackRTK() //{ */
+
+void MrsUavPx4Api::callbackRTK(mrs_lib::SubscribeHandler<mrs_msgs::Bestpos>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting rtk");
+
+  mrs_msgs::BestposConstPtr rtk = wrp.getMsg();
+
+  mrs_msgs::RtkGps rtk_msg_out;
+
+  rtk_msg_out.header.stamp    = ros::Time::now();
+  rtk_msg_out.header.frame_id = "utm";
+
+  // copy the position, orientation and velocity
+  if (sh_mavros_odometry_local_.hasMsg()) {
+
+    auto odom = sh_mavros_odometry_local_.getMsg();
+
+    rtk_msg_out.pose  = odom->pose;
+    rtk_msg_out.twist = odom->twist;
+  }
+
+  rtk_msg_out.pose.pose.position.x += _sim_rtk_offset_x_;
+  rtk_msg_out.pose.pose.position.y += _sim_rtk_offset_y_;
+
+  rtk_msg_out.pose.pose.position.x += sim_rtk_jump_offset_;
+  rtk_msg_out.pose.pose.position.y += sim_rtk_jump_offset_;
+
+  rtk_msg_out.pose.pose.position.x += sim_rtk_random_jump_;
+  rtk_msg_out.pose.pose.position.y += sim_rtk_random_jump_;
+
+  rtk_msg_out.status.status = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
+  rtk_msg_out.fix_type      = fix_type_;
+
+  // set orientation and twist to zero to unify the data provided by physical and simulated RTK
+  rtk_msg_out.pose.pose.orientation.x = 0;
+  rtk_msg_out.pose.pose.orientation.y = 0;
+  rtk_msg_out.pose.pose.orientation.z = 0;
+  rtk_msg_out.pose.pose.orientation.w = 1;
+
+  rtk_msg_out.twist.twist.linear.x = 0;
+  rtk_msg_out.twist.twist.linear.y = 0;
+  rtk_msg_out.twist.twist.linear.z = 0;
+
+  rtk_msg_out.twist.twist.angular.x = 0;
+  rtk_msg_out.twist.twist.angular.y = 0;
+  rtk_msg_out.twist.twist.angular.z = 0;
+
+  if (_simulation_ && _sim_rtk_simulate_jumps_) {
+
+    if (!sim_rtk_random_jump_active_ && --sim_rtk_until_next_jump_ <= 0) {
+      sim_rtk_random_jump_        = sim_rtk_jump_amplitude_;
+      sim_rtk_random_jump_active_ = true;
+      ROS_INFO("[RtkRepublisher]: jump %.2f added to RTK", sim_rtk_random_jump_);
+    }
+
+    if (sim_rtk_random_jump_active_ && --sim_rtk_until_jump_end_ <= 0) {
+      sim_rtk_random_jump_        = 0.0;
+      sim_rtk_random_jump_active_ = false;
+      const double rate           = 10.0;
+      sim_rtk_until_next_jump_    = std::floor((double)std::rand() / RAND_MAX * 20.0 * rate);
+      sim_rtk_until_jump_end_     = std::floor((double)std::rand() / RAND_MAX * 10.0 * rate);
+      sim_rtk_jump_amplitude_     = std::floor((double)std::rand() / RAND_MAX * 5.0);
+      ROS_INFO("[RtkRepublisher]: RTK jump ended. Next jump after %d samples, %d samples long, %.2f amplitude", sim_rtk_until_next_jump_,
+               sim_rtk_until_jump_end_, sim_rtk_jump_amplitude_);
+    }
+  }
+
+  common_handlers_->publishers.publishRTK(rtk_msg_out);
+}
+
+//}
+
+/* emulateJump() //{ */
+
+bool MrsUavPx4Api::emulateJump([[maybe_unused]] std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+
+  if (sim_rtk_jump_offset_ != 2.0) {
+    sim_rtk_jump_offset_       = 2.0;
+    sim_rtk_jump_hdg_offset_   = 1.0;
+    sim_rtk_fix_type_.fix_type = mrs_msgs::RtkFixType::SPS;
+  } else {
+    sim_rtk_jump_offset_       = 0.0;
+    sim_rtk_jump_hdg_offset_   = 0.0;
+    sim_rtk_fix_type_.fix_type = mrs_msgs::RtkFixType::RTK_FIX;
+  }
+
+  ROS_INFO("[MrsUavPx4Api]: emulated jump: %f", sim_rtk_jump_offset_);
+
+  res.message = "yep";
+  res.success = true;
+
+  return true;
 }
 
 //}

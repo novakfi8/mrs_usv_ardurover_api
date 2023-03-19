@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   mrs_lib
   mrs_uav_hw_api
+  std_srvs
   )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -22,7 +23,7 @@ set(LIBRARIES
   )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api geometry_msgs
+  CATKIN_DEPENDS roscpp mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api geometry_msgs std_srvs
   DEPENDS mavros_msgs
   LIBRARIES ${LIBRARIES}
   )
@@ -59,8 +60,12 @@ install(TARGETS ${LIBRARIES}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
   )
 
-install(DIRECTORY config
+install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+
+install(DIRECTORY include/
+  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   )
 
 install(DIRECTORY ./
