@@ -7,7 +7,6 @@ simulated_rtk:
   utm_x: 465710.758973
   utm_y: 5249465.43086
   amsl: 340.0
-  simulate_jumps: true
 
 inputs:
   control_group: false

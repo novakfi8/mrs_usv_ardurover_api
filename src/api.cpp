@@ -97,32 +97,10 @@ private:
   std::string _sim_rtk_utm_zone_;
   double      _sim_rtk_amsl_;
 
-  bool _sim_rtk_simulate_jumps_;
-
-  bool sim_rtk_random_jump_active_ = false;
-
-  double _sim_rtk_offset_x_       = 0;
-  double _sim_rtk_offset_y_       = 0;
-  double sim_rtk_jump_offset_     = 0;
-  double sim_rtk_random_jump_     = 0;
-  double sim_rtk_jump_hdg_offset_ = 0;
-
-  int    sim_rtk_until_next_jump_;
-  int    sim_rtk_until_jump_end_;
-  double sim_rtk_jump_amplitude_;
-
-  mrs_msgs::RtkFixType fix_type_;
-
-  mrs_msgs::RtkFixType sim_rtk_fix_type_;
-
   // | --------------------- service clients -------------------- |
 
   mrs_lib::ServiceClientHandler<mavros_msgs::CommandLong> sch_mavros_command_long_;
   mrs_lib::ServiceClientHandler<mavros_msgs::SetMode>     sch_mavros_mode_;
-
-  // | --------------------- service servers -------------------- |
-
-  bool emulateJump(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
 
   // | ----------------------- subscribers ---------------------- |
 
@@ -205,7 +183,6 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   param_loader.loadParam("simulated_rtk/utm_y", _sim_rtk_utm_y_);
   param_loader.loadParam("simulated_rtk/utm_zone", _sim_rtk_utm_zone_);
   param_loader.loadParam("simulated_rtk/amsl", _sim_rtk_amsl_);
-  param_loader.loadParam("simulated_rtk/simulate_jumps", _sim_rtk_simulate_jumps_);
 
   param_loader.loadParam("inputs/control_group", (bool&)_capabilities_.accepts_control_group_cmd);
   param_loader.loadParam("inputs/attitude_rate", (bool&)_capabilities_.accepts_attitude_rate_cmd);
@@ -280,8 +257,6 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   ph_mavros_actuator_control_ = mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl>(nh_, "mavros_actuator_control_out", 1);
 
   // | ----------------------- finish init ---------------------- |
-
-  sim_rtk_fix_type_.fix_type = mrs_msgs::RtkFixType::RTK_FIX;
 
   ROS_INFO("[MrsUavPx4Api]: initialized");
 
@@ -997,17 +972,8 @@ void MrsUavPx4Api::callbackRTK(mrs_lib::SubscribeHandler<mrs_msgs::Bestpos>& wrp
     rtk_msg_out.twist = odom->twist;
   }
 
-  rtk_msg_out.pose.pose.position.x += _sim_rtk_offset_x_;
-  rtk_msg_out.pose.pose.position.y += _sim_rtk_offset_y_;
-
-  rtk_msg_out.pose.pose.position.x += sim_rtk_jump_offset_;
-  rtk_msg_out.pose.pose.position.y += sim_rtk_jump_offset_;
-
-  rtk_msg_out.pose.pose.position.x += sim_rtk_random_jump_;
-  rtk_msg_out.pose.pose.position.y += sim_rtk_random_jump_;
-
-  rtk_msg_out.status.status = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
-  rtk_msg_out.fix_type      = fix_type_;
+  rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
+  rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.RTK_FIX;
 
   // set orientation and twist to zero to unify the data provided by physical and simulated RTK
   rtk_msg_out.pose.pose.orientation.x = 0;
@@ -1023,51 +989,7 @@ void MrsUavPx4Api::callbackRTK(mrs_lib::SubscribeHandler<mrs_msgs::Bestpos>& wrp
   rtk_msg_out.twist.twist.angular.y = 0;
   rtk_msg_out.twist.twist.angular.z = 0;
 
-  if (_simulation_ && _sim_rtk_simulate_jumps_) {
-
-    if (!sim_rtk_random_jump_active_ && --sim_rtk_until_next_jump_ <= 0) {
-      sim_rtk_random_jump_        = sim_rtk_jump_amplitude_;
-      sim_rtk_random_jump_active_ = true;
-      ROS_INFO("[RtkRepublisher]: jump %.2f added to RTK", sim_rtk_random_jump_);
-    }
-
-    if (sim_rtk_random_jump_active_ && --sim_rtk_until_jump_end_ <= 0) {
-      sim_rtk_random_jump_        = 0.0;
-      sim_rtk_random_jump_active_ = false;
-      const double rate           = 10.0;
-      sim_rtk_until_next_jump_    = std::floor((double)std::rand() / RAND_MAX * 20.0 * rate);
-      sim_rtk_until_jump_end_     = std::floor((double)std::rand() / RAND_MAX * 10.0 * rate);
-      sim_rtk_jump_amplitude_     = std::floor((double)std::rand() / RAND_MAX * 5.0);
-      ROS_INFO("[RtkRepublisher]: RTK jump ended. Next jump after %d samples, %d samples long, %.2f amplitude", sim_rtk_until_next_jump_,
-               sim_rtk_until_jump_end_, sim_rtk_jump_amplitude_);
-    }
-  }
-
   common_handlers_->publishers.publishRTK(rtk_msg_out);
-}
-
-//}
-
-/* emulateJump() //{ */
-
-bool MrsUavPx4Api::emulateJump([[maybe_unused]] std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
-
-  if (sim_rtk_jump_offset_ != 2.0) {
-    sim_rtk_jump_offset_       = 2.0;
-    sim_rtk_jump_hdg_offset_   = 1.0;
-    sim_rtk_fix_type_.fix_type = mrs_msgs::RtkFixType::SPS;
-  } else {
-    sim_rtk_jump_offset_       = 0.0;
-    sim_rtk_jump_hdg_offset_   = 0.0;
-    sim_rtk_fix_type_.fix_type = mrs_msgs::RtkFixType::RTK_FIX;
-  }
-
-  ROS_INFO("[MrsUavPx4Api]: emulated jump: %f", sim_rtk_jump_offset_);
-
-  res.message = "yep";
-  res.success = true;
-
-  return true;
 }
 
 //}
