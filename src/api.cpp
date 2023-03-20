@@ -303,7 +303,7 @@ mrs_msgs::HwApiStatus MrsUavPx4Api::getStatus() {
 
     status.armed     = armed_;
     status.offboard  = offboard_;
-    status.connected = connected_;
+    status.connected = sh_mavros_state_.hasMsg();
     status.mode      = mode_;
   }
 
