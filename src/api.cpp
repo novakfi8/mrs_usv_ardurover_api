@@ -96,23 +96,6 @@ private:
   double      _sim_rtk_utm_y_;
   std::string _sim_rtk_utm_zone_;
   double      _sim_rtk_amsl_;
-  bool        _sim_rtk_simulate_jumps_;
-
-  bool sim_rtk_random_jump_active_ = false;
-
-  double _sim_rtk_offset_x_       = 0;
-  double _sim_rtk_offset_y_       = 0;
-  double sim_rtk_jump_offset_     = 0;
-  double sim_rtk_random_jump_     = 0;
-  double sim_rtk_jump_hdg_offset_ = 0;
-
-  int    sim_rtk_until_next_jump_;
-  int    sim_rtk_until_jump_end_;
-  double sim_rtk_jump_amplitude_;
-
-  mrs_msgs::RtkFixType fix_type_;
-
-  mrs_msgs::RtkFixType sim_rtk_fix_type_;
 
   // | --------------------- service clients -------------------- |
 
@@ -280,7 +263,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
 
   // | ----------------------- finish init ---------------------- |
 
-  fix_type_.fix_type = mrs_msgs::RtkFixType::RTK_FIX;
+  sim_rtk_fix_type_.fix_type = mrs_msgs::RtkFixType::RTK_FIX;
 
   ROS_INFO("[MrsUavPx4Api]: initialized");
 
