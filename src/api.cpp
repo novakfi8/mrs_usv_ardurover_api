@@ -901,12 +901,24 @@ void MrsUavPx4Api::callbackGroundTruth(mrs_lib::SubscribeHandler<nav_msgs::Odome
 
   ROS_INFO_ONCE("[MrsUavPx4Api]: getting ground truth");
 
-  nav_msgs::OdometryConstPtr odom = wrp.getMsg();
+  nav_msgs::Odometry odom = *wrp.getMsg();
 
   // | ------------------ publish ground truth ------------------ |
 
   if (_capabilities_.produces_ground_truth) {
-    common_handlers_->publishers.publishGroundTruth(*odom);
+
+    // if frame_id is "/world", "world", "/map" or "map" gazebo reports velocitites in global world frame so we need to transform them to body frame
+    if (odom.header.frame_id == "/world" || odom.header.frame_id == "world" || odom.header.frame_id == "/map" || odom.header.frame_id == "map") {
+      ROS_INFO_ONCE("[MrsUavPx4Api]: transforming Gazebo ground truth velocities from world to body frame");
+      Eigen::Matrix3d R = mrs_lib::AttitudeConverter(odom.pose.pose.orientation);
+      Eigen::Vector3d lin_vel_world(odom.twist.twist.linear.x, odom.twist.twist.linear.y, odom.twist.twist.linear.z);
+      Eigen::Vector3d lin_vel_body = R.inverse() * lin_vel_world;
+
+      odom.twist.twist.linear.x = lin_vel_body[0];
+      odom.twist.twist.linear.y = lin_vel_body[1];
+      odom.twist.twist.linear.z = lin_vel_body[2];
+    }
+    common_handlers_->publishers.publishGroundTruth(odom);
   }
 
   if (_capabilities_.produces_rtk) {
@@ -914,24 +926,24 @@ void MrsUavPx4Api::callbackGroundTruth(mrs_lib::SubscribeHandler<nav_msgs::Odome
     double lat;
     double lon;
 
-    mrs_lib::UTMtoLL(odom->pose.pose.position.y + _sim_rtk_utm_y_, odom->pose.pose.position.x + _sim_rtk_utm_x_, _sim_rtk_utm_zone_, lat, lon);
+    mrs_lib::UTMtoLL(odom.pose.pose.position.y + _sim_rtk_utm_y_, odom.pose.pose.position.x + _sim_rtk_utm_x_, _sim_rtk_utm_zone_, lat, lon);
 
     sensor_msgs::NavSatFix gnss;
 
-    gnss.header.stamp = odom->header.stamp;
+    gnss.header.stamp = odom.header.stamp;
 
     gnss.latitude  = lat;
     gnss.longitude = lon;
-    gnss.altitude  = odom->pose.pose.position.z + _sim_rtk_amsl_;
+    gnss.altitude  = odom.pose.pose.position.z + _sim_rtk_amsl_;
 
     mrs_msgs::RtkGps rtk;
 
-    rtk.header.stamp    = odom->header.stamp;
+    rtk.header.stamp    = odom.header.stamp;
     rtk.header.frame_id = "gps";
 
     rtk.gps.latitude      = lat;
     rtk.gps.longitude     = lon;
-    rtk.gps.altitude      = odom->pose.pose.position.z + _sim_rtk_amsl_;
+    rtk.gps.altitude      = odom.pose.pose.position.z + _sim_rtk_amsl_;
     rtk.gps.covariance[0] = std::pow(0.1, 2);
     rtk.gps.covariance[4] = std::pow(0.1, 2);
     rtk.gps.covariance[8] = std::pow(0.1, 2);
