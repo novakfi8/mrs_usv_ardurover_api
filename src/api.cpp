@@ -52,8 +52,7 @@ class MrsUavPx4Api : public mrs_uav_hw_api::MrsUavHwApi {
 public:
   ~MrsUavPx4Api(){};
 
-  void initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers, const std::string& topic_prefix,
-                  const std::string& uav_name);
+  void initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers);
 
   // | --------------------- status methods --------------------- |
 
@@ -87,6 +86,10 @@ private:
   // | ----------------------- parameters ----------------------- |
 
   mrs_msgs::HwApiCapabilities _capabilities_;
+
+  std::string _uav_name_;
+  std::string _body_frame_name_;
+  std::string _world_frame_name_;
 
   double _mavros_timeout_;
 
@@ -162,12 +165,15 @@ private:
 
 /* initialize() //{ */
 
-void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers,
-                              [[maybe_unused]] const std::string& topic_prefix, [[maybe_unused]] const std::string& uav_name) {
+void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers) {
 
   ros::NodeHandle nh_(parent_nh);
 
   common_handlers_ = common_handlers;
+
+  _uav_name_         = common_handlers->getUavName();
+  _body_frame_name_  = common_handlers->getBodyFrameName();
+  _world_frame_name_ = common_handlers->getWorldFrameName();
 
   _capabilities_.api_name = "Px4Api";
 
@@ -681,8 +687,9 @@ void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odo
 
     geometry_msgs::PointStamped position;
 
-    position.header = odom->header;
-    position.point  = odom->pose.pose.position;
+    position.header.stamp    = odom->header.stamp;
+    position.header.frame_id = _uav_name_ + "/" + _world_frame_name_;
+    position.point           = odom->pose.pose.position;
 
     common_handlers_->publishers.publishPosition(position);
   }
@@ -693,8 +700,9 @@ void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odo
 
     geometry_msgs::QuaternionStamped orientation;
 
-    orientation.header     = odom->header;
-    orientation.quaternion = odom->pose.pose.orientation;
+    orientation.header.stamp    = odom->header.stamp;
+    orientation.header.frame_id = _uav_name_ + "/" + _world_frame_name_;
+    orientation.quaternion      = odom->pose.pose.orientation;
 
     common_handlers_->publishers.publishOrientation(orientation);
   }
@@ -706,7 +714,7 @@ void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odo
     geometry_msgs::Vector3Stamped velocity;
 
     velocity.header.stamp    = odom->header.stamp;
-    velocity.header.frame_id = odom->child_frame_id;
+    velocity.header.frame_id = _uav_name_ + "/" + _body_frame_name_;
     velocity.vector          = odom->twist.twist.linear;
 
     common_handlers_->publishers.publishVelocity(velocity);
@@ -719,7 +727,7 @@ void MrsUavPx4Api::callbackOdometryLocal(mrs_lib::SubscribeHandler<nav_msgs::Odo
     geometry_msgs::Vector3Stamped angular_velocity;
 
     angular_velocity.header.stamp    = odom->header.stamp;
-    angular_velocity.header.frame_id = odom->child_frame_id;
+    angular_velocity.header.frame_id = _uav_name_ + "/" + _body_frame_name_;
     angular_velocity.vector          = odom->twist.twist.angular;
 
     common_handlers_->publishers.publishAngularVelocity(angular_velocity);
@@ -788,7 +796,10 @@ void MrsUavPx4Api::callbackImu(mrs_lib::SubscribeHandler<sensor_msgs::Imu>& wrp)
 
     sensor_msgs::ImuConstPtr imu = wrp.getMsg();
 
-    common_handlers_->publishers.publishIMU(*imu);
+    sensor_msgs::Imu new_imu_msg = *imu;
+    new_imu_msg.header.frame_id  = _uav_name_ + "/" + _body_frame_name_;
+
+    common_handlers_->publishers.publishIMU(new_imu_msg);
   }
 }
 
@@ -809,8 +820,9 @@ void MrsUavPx4Api::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Floa
     std_msgs::Float64ConstPtr mag = wrp.getMsg();
 
     mrs_msgs::Float64Stamped mag_out;
-    mag_out.header.stamp = ros::Time::now();
-    mag_out.value        = mag->data;
+    mag_out.header.stamp    = ros::Time::now();
+    mag_out.header.frame_id = _uav_name_ + "/" + _world_frame_name_;
+    mag_out.value           = mag->data;
 
     common_handlers_->publishers.publishMagnetometerHeading(mag_out);
   }
