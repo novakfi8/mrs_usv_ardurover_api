@@ -1,16 +1,22 @@
 cmake_minimum_required(VERSION 3.1.2)
 project(mrs_uav_px4_api)
 
-find_package(catkin REQUIRED COMPONENTS
+set(CATKIN_DEPENDENCIES
   roscpp
   cmake_modules
+  std_srvs
+  mrs_uav_hw_api
+  mavros
+  mavros_msgs
   mrs_msgs
   nav_msgs
   geometry_msgs
   sensor_msgs
   mrs_lib
-  mrs_uav_hw_api
-  std_srvs
+  )
+
+find_package(catkin REQUIRED COMPONENTS
+  ${CATKIN_DEPENDENCIES}
   )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -23,7 +29,7 @@ set(LIBRARIES
   )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp mrs_msgs sensor_msgs mrs_lib mavros_msgs mrs_uav_hw_api geometry_msgs std_srvs
+  CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
   DEPENDS mavros_msgs
   LIBRARIES ${LIBRARIES}
   )
@@ -62,13 +68,4 @@ install(TARGETS ${LIBRARIES}
 
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  )
-
-install(DIRECTORY include/
-  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-  )
-
-install(DIRECTORY ./
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  FILES_MATCHING PATTERN "*.xml"
   )
