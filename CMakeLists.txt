@@ -1,18 +1,20 @@
-cmake_minimum_required(VERSION 3.1.2)
+cmake_minimum_required(VERSION 3.5)
 project(mrs_uav_px4_api)
 
 set(CATKIN_DEPENDENCIES
-  roscpp
   cmake_modules
-  std_srvs
-  mrs_uav_hw_api
+  geometry_msgs
   mavros
   mavros_msgs
-  mrs_msgs
-  nav_msgs
-  geometry_msgs
-  sensor_msgs
   mrs_lib
+  mrs_msgs
+  mrs_uav_hw_api
+  nav_msgs
+  pluginlib
+  roscpp
+  sensor_msgs
+  std_msgs
+  std_srvs
   )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -22,35 +24,31 @@ find_package(catkin REQUIRED COMPONENTS
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(mavros_msgs REQUIRED)
-
 set(LIBRARIES
-  MrsUavHwPx4Api
+  MrsUavPx4Api_Api
   )
 
 catkin_package(
   CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
-  DEPENDS mavros_msgs
   LIBRARIES ${LIBRARIES}
   )
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${mavros_msgs_INCLUDE_DIRS}
   )
 
 # Plugin
 
-add_library(MrsUavHwPx4Api
+add_library(MrsUavPx4Api_Api
   src/api.cpp
   )
 
-add_dependencies(MrsUavHwPx4Api
+add_dependencies(MrsUavPx4Api_Api
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   )
 
-target_link_libraries(MrsUavHwPx4Api
+target_link_libraries(MrsUavPx4Api_Api
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )

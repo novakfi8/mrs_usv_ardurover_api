@@ -13,18 +13,18 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>cmake_modules</depend>
-  <depend>pluginlib</depend>
-  <depend>roscpp</depend>
-  <depend>mrs_msgs</depend>
-  <depend>std_msgs</depend>
-  <depend>std_srvs</depend>
-  <depend>nav_msgs</depend>
-  <depend>sensor_msgs</depend>
-  <depend>mrs_lib</depend>
+  <depend>geometry_msgs</depend>
   <depend>mavros</depend>
   <depend>mavros_msgs</depend>
-  <depend>geometry_msgs</depend>
+  <depend>mrs_lib</depend>
+  <depend>mrs_msgs</depend>
   <depend>mrs_uav_hw_api</depend>
+  <depend>nav_msgs</depend>
+  <depend>pluginlib</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
 
   <export>
     <mrs_uav_hw_api plugin="${prefix}/plugins.xml" />
