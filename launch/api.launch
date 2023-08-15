@@ -36,12 +36,12 @@
       <param name="simulation" type="bool" value="$(eval arg('RUN_TYPE') == 'simulation')" />
 
       <remap if="$(eval arg('RUN_TYPE') == 'simulation')" from="~ground_truth_in" to="ground_truth" />
-      <remap if="$(eval arg('RUN_TYPE') == 'uav')" from="~rtk_in" to="rtk/bestpos" />
+      <remap if="$(eval arg('RUN_TYPE') == 'realworld')" from="~rtk_in" to="rtk/bestpos" />
       <remap from="~mavros_state_in" to="mavros/state" />
       <remap from="~mavros_local_position_in" to="mavros/local_position/odom" />
       <remap from="~mavros_global_position_in" to="mavros/global_position/global" />
       <remap if="$(eval arg('RUN_TYPE') == 'simulation')" from="~mavros_garmin_in" to="garmin/range" />
-      <remap if="$(eval arg('RUN_TYPE') == 'uav')" from="~mavros_garmin_in" to="mavros/distance_sensor/garmin" />
+      <remap if="$(eval arg('RUN_TYPE') == 'realworld')" from="~mavros_garmin_in" to="mavros/distance_sensor/garmin" />
       <remap from="~mavros_imu_in" to="mavros/imu/data" />
       <remap from="~mavros_magnetometer_in" to="mavros/global_position/compass_hdg" />
       <remap from="~mavros_magnetic_field_in" to="mavros/imu/mag" />
