@@ -204,6 +204,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   param_loader.loadParam("outputs/imu", (bool&)_capabilities_.produces_imu);
   param_loader.loadParam("outputs/altitude", (bool&)_capabilities_.produces_altitude);
   param_loader.loadParam("outputs/magnetometer_heading", (bool&)_capabilities_.produces_magnetometer_heading);
+  param_loader.loadParam("outputs/magnetic_field", (bool&)_capabilities_.produces_magnetic_field);
   param_loader.loadParam("outputs/rc_channels", (bool&)_capabilities_.produces_rc_channels);
   param_loader.loadParam("outputs/battery_state", (bool&)_capabilities_.produces_battery_state);
   param_loader.loadParam("outputs/position", (bool&)_capabilities_.produces_position);
