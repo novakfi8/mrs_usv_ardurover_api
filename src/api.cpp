@@ -134,6 +134,9 @@ private:
   mrs_lib::SubscribeHandler<std_msgs::Float64> sh_mavros_magnetometer_heading_;
   void                                         callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Float64>& wrp);
 
+  mrs_lib::SubscribeHandler<sensor_msgs::MagneticField> sh_mavros_magnetic_field_;
+  void                                                  callbackMagneticField(mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>& wrp);
+
   mrs_lib::SubscribeHandler<mavros_msgs::RCIn> sh_mavros_rc_;
   void                                         callbackRC(mrs_lib::SubscribeHandler<mavros_msgs::RCIn>& wrp);
 
@@ -250,6 +253,9 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   sh_mavros_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, "mavros_imu_in", &MrsUavPx4Api::callbackImu, this);
 
   sh_mavros_magnetometer_heading_ = mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, "mavros_magnetometer_in", &MrsUavPx4Api::callbackMagnetometer, this);
+
+  sh_mavros_magnetic_field_ =
+      mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>(shopts, "mavros_magnetic_field_in", &MrsUavPx4Api::callbackMagneticField, this);
 
   sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, "mavros_rc_in", &MrsUavPx4Api::callbackRC, this);
 
@@ -825,6 +831,24 @@ void MrsUavPx4Api::callbackMagnetometer(mrs_lib::SubscribeHandler<std_msgs::Floa
     mag_out.value           = mag->data;
 
     common_handlers_->publishers.publishMagnetometerHeading(mag_out);
+  }
+}
+
+//}
+
+/* callbackMagneticField() //{ */
+
+void MrsUavPx4Api::callbackMagneticField(mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  ROS_INFO_ONCE("[MrsUavPx4Api]: getting magnetic field");
+
+  if (_capabilities_.produces_magnetic_field) {
+
+    common_handlers_->publishers.publishMagneticField(*(wrp.getMsg()));
   }
 }
 
