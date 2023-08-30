@@ -995,15 +995,6 @@ void MrsUavPx4Api::callbackRTK(const mrs_msgs::Bestpos::ConstPtr msg) {
   rtk_msg_out.header.stamp    = ros::Time::now();
   rtk_msg_out.header.frame_id = "utm";
 
-  // copy the position, orientation and velocity
-  if (sh_mavros_odometry_local_.hasMsg()) {
-
-    auto odom = sh_mavros_odometry_local_.getMsg();
-
-    rtk_msg_out.pose  = odom->pose;
-    rtk_msg_out.twist = odom->twist;
-  }
-
   if (msg->position_type == "L1_INT") {
     rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
     rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.RTK_FIX;
@@ -1024,21 +1015,6 @@ void MrsUavPx4Api::callbackRTK(const mrs_msgs::Bestpos::ConstPtr msg) {
     rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_NO_FIX;
     rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.NO_FIX;
   }
-
-
-  // set orientation and twist to zero to unify the data provided by physical and simulated RTK
-  rtk_msg_out.pose.pose.orientation.x = 0;
-  rtk_msg_out.pose.pose.orientation.y = 0;
-  rtk_msg_out.pose.pose.orientation.z = 0;
-  rtk_msg_out.pose.pose.orientation.w = 1;
-
-  rtk_msg_out.twist.twist.linear.x = 0;
-  rtk_msg_out.twist.twist.linear.y = 0;
-  rtk_msg_out.twist.twist.linear.z = 0;
-
-  rtk_msg_out.twist.twist.angular.x = 0;
-  rtk_msg_out.twist.twist.angular.y = 0;
-  rtk_msg_out.twist.twist.angular.z = 0;
 
   common_handlers_->publishers.publishRTK(rtk_msg_out);
 }
