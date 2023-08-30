@@ -15,6 +15,7 @@
   <depend>cmake_modules</depend>
   <depend>geometry_msgs</depend>
   <depend>mavros</depend>
+  <depend>mavros_extras</depend>
   <depend>mavros_msgs</depend>
   <depend>mrs_lib</depend>
   <depend>mrs_msgs</depend>
