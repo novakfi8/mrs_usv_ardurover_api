@@ -990,8 +990,7 @@ void MrsUavPx4Api::callbackRTK(const mrs_msgs::Bestpos::ConstPtr msg) {
 
   rtk_msg_out.gps.latitude  = msg->latitude;
   rtk_msg_out.gps.longitude = msg->longitude;
-
-  // TODO fill in more of the rtk_msg_out
+  rtk_msg_out.gps.altitude  = msg->height;
 
   rtk_msg_out.header.stamp    = ros::Time::now();
   rtk_msg_out.header.frame_id = "utm";
@@ -1005,8 +1004,27 @@ void MrsUavPx4Api::callbackRTK(const mrs_msgs::Bestpos::ConstPtr msg) {
     rtk_msg_out.twist = odom->twist;
   }
 
-  rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
-  rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.RTK_FIX;
+  if (msg->position_type == "L1_INT") {
+    rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
+    rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.RTK_FIX;
+
+  } else if (msg->position_type == "L1_FLOAT") {
+    rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
+    rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.RTK_FLOAT;
+
+  } else if (msg->position_type == "PSRDIFF") {
+    rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
+    rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.DGPS;
+
+  } else if (msg->position_type == "SINGLE") {
+    rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
+    rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.SPS;
+
+  } else if (msg->position_type == "NONE") {
+    rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_NO_FIX;
+    rtk_msg_out.fix_type.fix_type = rtk_msg_out.fix_type.NO_FIX;
+  }
+
 
   // set orientation and twist to zero to unify the data provided by physical and simulated RTK
   rtk_msg_out.pose.pose.orientation.x = 0;
