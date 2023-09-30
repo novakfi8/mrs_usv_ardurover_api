@@ -8,6 +8,7 @@ set(CATKIN_DEPENDENCIES
   mavros_msgs
   mrs_lib
   mrs_msgs
+  mrs_modules_msgs
   mrs_uav_hw_api
   nav_msgs
   pluginlib

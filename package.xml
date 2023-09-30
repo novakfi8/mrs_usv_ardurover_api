@@ -19,6 +19,7 @@
   <depend>mavros_msgs</depend>
   <depend>mrs_lib</depend>
   <depend>mrs_msgs</depend>
+  <depend>mrs_modules_msgs</depend>
   <depend>mrs_uav_hw_api</depend>
   <depend>nav_msgs</depend>
   <depend>pluginlib</depend>

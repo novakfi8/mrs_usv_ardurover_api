@@ -6,7 +6,7 @@
 
 #include <std_srvs/Trigger.h>
 
-#include <mrs_msgs/Bestpos.h>
+#include <mrs_modules_msgs/Bestpos.h>
 
 #include <nav_msgs/Odometry.h>
 
@@ -110,8 +110,8 @@ private:
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_ground_truth_;
   void                                          callbackGroundTruth(const nav_msgs::Odometry::ConstPtr msg);
 
-  mrs_lib::SubscribeHandler<mrs_msgs::Bestpos> sh_rtk_;
-  void                                         callbackRTK(const mrs_msgs::Bestpos::ConstPtr msg);
+  mrs_lib::SubscribeHandler<mrs_modules_msgs::Bestpos> sh_rtk_;
+  void                                                 callbackRTK(const mrs_modules_msgs::Bestpos::ConstPtr msg);
 
   mrs_lib::SubscribeHandler<mavros_msgs::State> sh_mavros_state_;
 
@@ -239,7 +239,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   }
 
   if (!_simulation_) {
-    sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::Bestpos>(shopts, "rtk_in", &MrsUavPx4Api::callbackRTK, this);
+    sh_rtk_ = mrs_lib::SubscribeHandler<mrs_modules_msgs::Bestpos>(shopts, "rtk_in", &MrsUavPx4Api::callbackRTK, this);
   }
 
   sh_mavros_state_ = mrs_lib::SubscribeHandler<mavros_msgs::State>(shopts, "mavros_state_in", ros::Duration(0.05), &MrsUavPx4Api::timeoutMavrosState, this,
@@ -978,7 +978,7 @@ void MrsUavPx4Api::callbackGroundTruth(const nav_msgs::Odometry::ConstPtr msg) {
 
 /* callbackRTK() //{ */
 
-void MrsUavPx4Api::callbackRTK(const mrs_msgs::Bestpos::ConstPtr msg) {
+void MrsUavPx4Api::callbackRTK(const mrs_modules_msgs::Bestpos::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
