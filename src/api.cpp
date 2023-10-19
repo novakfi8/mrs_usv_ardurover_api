@@ -993,7 +993,7 @@ void MrsUavPx4Api::callbackRTK(const mrs_modules_msgs::Bestpos::ConstPtr msg) {
   rtk_msg_out.gps.altitude  = msg->height;
 
   rtk_msg_out.header.stamp    = ros::Time::now();
-  rtk_msg_out.header.frame_id = "utm";
+  rtk_msg_out.header.frame_id = _uav_name_ + "/" + _body_frame_name_;
 
   if (msg->position_type == "L1_INT") {
     rtk_msg_out.status.status     = sensor_msgs::NavSatStatus::STATUS_GBAS_FIX;
