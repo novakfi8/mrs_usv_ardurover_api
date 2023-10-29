@@ -478,20 +478,6 @@ std::tuple<bool, std::string> MrsUavPx4Api::callbackArming([[maybe_unused]] cons
 
   std::stringstream ss;
 
-  /* if (request) { */
-
-  /*   ss << "Arming is not allowed using the companion computer."; */
-  /*   ROS_WARN_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str()); */
-  /*   return std::tuple(false, ss.str()); */
-  /* } */
-
-  if (!request && !offboard_) {
-
-    ss << "can not disarm, not in OFFBOARD mode";
-    ROS_WARN_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
-    return std::tuple(false, ss.str());
-  }
-
   mavros_msgs::CommandLong srv_out;
 
   srv_out.request.broadcast    = false;
@@ -598,14 +584,14 @@ void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string& topic,
       mode_      = "";
     }
 
-    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: Have not received Mavros state for more than '%.3f s'", time.toSec());
+    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: Have not received Mavros state for more than '%.3f s'", time.toSec());
 
   } else {
 
-    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
-    ROS_INFO_THROTTLE(1.0, "[MrsUavPx4Api]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
-    ROS_INFO_THROTTLE(1.0, "[MrsUavPx4Api]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
-    ROS_INFO_THROTTLE(1.0, "[MrsUavPx4Api]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
+    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
+    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
+    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
+    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
   }
 }
 
