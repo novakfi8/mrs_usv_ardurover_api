@@ -304,9 +304,15 @@ mrs_msgs::HwApiStatus MrsUavPx4Api::getStatus() {
 
 mrs_msgs::HwApiCapabilities MrsUavPx4Api::getCapabilities() {
 
-  _capabilities_.stamp = ros::Time::now();
+  auto capabilities = _capabilities_;
 
-  return _capabilities_;
+  capabilities.stamp = ros::Time::now();
+
+  if (capabilities.produces_distance_sensor && !sh_mavros_distance_sensor_.hasMsg()) {
+    capabilities.produces_distance_sensor = false;
+  }
+
+  return capabilities;
 }
 
 //}
