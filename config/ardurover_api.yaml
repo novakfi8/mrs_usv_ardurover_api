@@ -1,6 +1,8 @@
-hw_interface_plugin: "mrs_uav_px4_api/Api"
+hw_interface_plugin: "mrs_usv_ardurover_api/Api"
 
-mavros_timeout: 1.0 # [s]
+mavros_timeout: 5.0 # [s]
+
+position_cmd_map: true
 
 simulated_rtk:
   utm_zone: "32T"
@@ -9,19 +11,20 @@ simulated_rtk:
   amsl: 340.0
 
 inputs:
+  position:      true
   control_group: false
-  attitude_rate: true
-  attitude:      true
+  attitude_rate: false
+  attitude:      false
 
 outputs:
-  distance_sensor:      true
+  distance_sensor:      false
   gnss:                 true
   rtk:                  true
   imu:                  true
   altitude:             true
   magnetometer_heading: true
   magnetic_field:       true
-  rc_channels:          true
+  rc_channels:          false
   battery_state:        true
   position:             true
   orientation:          true

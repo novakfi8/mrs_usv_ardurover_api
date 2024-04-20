@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <package format="2">
 
-  <name>mrs_uav_px4_api</name>
+  <name>mrs_usv_ardurover_api</name>
   <version>1.0.0</version>
-  <description>PX4 API for MRS UAV System</description>
+  <description>ArduPilot Rover API for MRS UAV System</description>
 
-  <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
-  <maintainer email="tomas.baca@fel.cvut.cz">Tomas Baca</maintainer>
+  <author email="filip.novak@fel.cvut.cz">Filip Novak</author>
+  <maintainer email="filip.novak@fel.cvut.cz">Filip Novak</maintainer>
 
   <license>BSD 3-Clause</license>
 
