@@ -22,6 +22,7 @@
 #include <std_msgs/Float64.h>
 
 #include <geometry_msgs/QuaternionStamped.h>
+#include <geometry_msgs/Twist.h>
 
 #include <mavros_msgs/AttitudeTarget.h>
 #include <mavros_msgs/CommandLong.h>
@@ -153,6 +154,7 @@ private:
   mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>  ph_mavros_attitude_target_;
   mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl> ph_mavros_actuator_control_;
   mrs_lib::PublisherHandler<mavros_msgs::PositionTarget>  ph_mavros_position_target_;
+  mrs_lib::PublisherHandler<geometry_msgs::Twist>         ph_mavros_velocity_target_;
 
   // | ------------------------ variables ----------------------- |
 
@@ -206,6 +208,7 @@ void MrsUsvArduroverApi::initialize(const ros::NodeHandle& parent_nh, std::share
   param_loader.loadParam("inputs/attitude_rate", (bool&)_capabilities_.accepts_attitude_rate_cmd);
   param_loader.loadParam("inputs/attitude", (bool&)_capabilities_.accepts_attitude_cmd);
   param_loader.loadParam("inputs/position", (bool&)_capabilities_.accepts_position_cmd);
+  param_loader.loadParam("inputs/velocity_hdg_rate", (bool&)_capabilities_.accepts_velocity_hdg_rate_cmd);
 
   param_loader.loadParam("outputs/distance_sensor", (bool&)_capabilities_.produces_distance_sensor);
   param_loader.loadParam("outputs/gnss", (bool&)_capabilities_.produces_gnss);
@@ -281,6 +284,7 @@ void MrsUsvArduroverApi::initialize(const ros::NodeHandle& parent_nh, std::share
   ph_mavros_attitude_target_  = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, "mavros_attitude_setpoint_out", 1);
   ph_mavros_actuator_control_ = mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl>(nh_, "mavros_actuator_control_out", 1);
   ph_mavros_position_target_ = mrs_lib::PublisherHandler<mavros_msgs::PositionTarget>(nh_, "mavros_position_setpoint_out", 1);
+  ph_mavros_velocity_target_ = mrs_lib::PublisherHandler<geometry_msgs::Twist>(nh_, "mavros_velocity_setpoint_out", 1);
 
   // | ----------------------- transformer ---------------------- |
   transformer_ = mrs_lib::Transformer(nh_, "UavUsvController");
@@ -455,7 +459,24 @@ bool MrsUsvArduroverApi::callbackVelocityHdgRateCmd([[maybe_unused]] const mrs_m
 
   ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting velocity+hdg rate cmd");
 
-  return false;
+  if (!_capabilities_.accepts_velocity_hdg_rate_cmd) {
+    ROS_ERROR("[%s]: the velocity and heading rate input is not enabled in the config file", node_name.c_str());
+    return false;
+  }
+   
+  // fill position target command
+  geometry_msgs::Twist velocity_cmd;
+
+  velocity_cmd.linear.x = msg->velocity.x;
+  velocity_cmd.linear.y = 0;
+  velocity_cmd.linear.z = 0;
+  velocity_cmd.angular.x = 0;
+  velocity_cmd.angular.y = 0;
+  velocity_cmd.angular.z = msg->heading_rate;
+ 
+  ph_mavros_velocity_target_.publish(velocity_cmd);
+
+  return true;
 }
 
 //}

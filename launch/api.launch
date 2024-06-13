@@ -51,6 +51,7 @@
 
 
       <remap from="~mavros_position_setpoint_out" to="/mavros/setpoint_raw/local" />
+      <remap from="~mavros_velocity_setpoint_out" to="/mavros/setpoint_velocity/cmd_vel_unstamped" />
       <remap from="~mavros_attitude_setpoint_out" to="/mavros/setpoint_raw/attitude" />
       <remap from="~mavros_actuator_control_out" to="/mavros/actuator_control" />
       <remap from="~mavros_cmd_out" to="/mavros/cmd/command" />
