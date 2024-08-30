@@ -35,8 +35,9 @@
       <param name="uav_name" type="string" value="$(arg UAV_NAME)" />
       <param name="simulation" type="bool" value="$(eval arg('RUN_TYPE') == 'simulation')" />
 
+      <!-- Topics -->
       <remap if="$(eval arg('RUN_TYPE') == 'simulation')" from="~ground_truth_in" to="ground_truth" />
-      <remap if="$(eval arg('RUN_TYPE') == 'realworld')" from="~rtk_in" to="rtk/bestpos" />
+      <remap if="$(eval arg('RUN_TYPE') == 'realworld')" from="~rtk_in" to="/uav/rtk/bestpos" />
       
       <remap from="~mavros_state_in" to="/mavros/state" />
       
@@ -49,13 +50,17 @@
       <remap from="~mavros_rc_in" to="/mavros/rc/in" />
       <remap from="~mavros_battery_in" to="/mavros/battery" />
 
-
       <remap from="~mavros_position_setpoint_out" to="/mavros/setpoint_raw/local" />
       <remap from="~mavros_velocity_setpoint_out" to="/mavros/setpoint_velocity/cmd_vel_unstamped" />
       <remap from="~mavros_attitude_setpoint_out" to="/mavros/setpoint_raw/attitude" />
       <remap from="~mavros_actuator_control_out" to="/mavros/actuator_control" />
       <remap from="~mavros_cmd_out" to="/mavros/cmd/command" />
       <remap from="~mavros_set_mode_out" to="/mavros/set_mode" />
+      
+      <remap from="~left_usv_thrust_cmd_out" to="/wamv/thrusters/left_thrust_cmd" />
+      <remap from="~right_usv_thrust_cmd_out" to="/wamv/thrusters/right_thrust_cmd" />
+      <remap from="~left_usv_thrust_angle_out" to="/wamv/thrusters/left_thrust_angle" />
+      <remap from="~right_usv_thrust_angle_out" to="/wamv/thrusters/right_thrust_angle" />
 
       <!-- NO DATA -->
       <remap from="~mavros_altitude_in" to="/mavros/altitude" />
