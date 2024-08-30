@@ -541,7 +541,7 @@ bool MrsUsvArduroverApi::callbackPositionCmd([[maybe_unused]] const mrs_msgs::Hw
     output_frame = "map";
     position_target.coordinate_frame = position_target.FRAME_LOCAL_NED;
   } else{
-    output_frame = "filip/fcu";
+    output_frame = _uav_name_ + "/fcu";
     position_target.coordinate_frame = position_target.FRAME_BODY_NED;
   }
 
