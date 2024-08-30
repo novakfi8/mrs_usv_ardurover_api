@@ -20,6 +20,7 @@
 #include <mrs_lib/transformer.h>
 
 #include <std_msgs/Float64.h>
+#include <std_msgs/Float32.h>
 
 #include <geometry_msgs/QuaternionStamped.h>
 #include <geometry_msgs/Twist.h>
@@ -155,6 +156,11 @@ private:
   mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl> ph_mavros_actuator_control_;
   mrs_lib::PublisherHandler<mavros_msgs::PositionTarget>  ph_mavros_position_target_;
   mrs_lib::PublisherHandler<geometry_msgs::Twist>         ph_mavros_velocity_target_;
+  
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_left_usv_thrust_cmd_;
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_right_usv_thrust_cmd_;
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_left_usv_thrust_angle_;
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_right_usv_thrust_angle_;
 
   // | ------------------------ variables ----------------------- |
 
@@ -209,6 +215,7 @@ void MrsUsvArduroverApi::initialize(const ros::NodeHandle& parent_nh, std::share
   param_loader.loadParam("inputs/attitude", (bool&)_capabilities_.accepts_attitude_cmd);
   param_loader.loadParam("inputs/position", (bool&)_capabilities_.accepts_position_cmd);
   param_loader.loadParam("inputs/velocity_hdg_rate", (bool&)_capabilities_.accepts_velocity_hdg_rate_cmd);
+  param_loader.loadParam("inputs/actuator", (bool&)_capabilities_.accepts_actuator_cmd);
 
   param_loader.loadParam("outputs/distance_sensor", (bool&)_capabilities_.produces_distance_sensor);
   param_loader.loadParam("outputs/gnss", (bool&)_capabilities_.produces_gnss);
@@ -283,8 +290,13 @@ void MrsUsvArduroverApi::initialize(const ros::NodeHandle& parent_nh, std::share
 
   ph_mavros_attitude_target_  = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, "mavros_attitude_setpoint_out", 1);
   ph_mavros_actuator_control_ = mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl>(nh_, "mavros_actuator_control_out", 1);
-  ph_mavros_position_target_ = mrs_lib::PublisherHandler<mavros_msgs::PositionTarget>(nh_, "mavros_position_setpoint_out", 1);
-  ph_mavros_velocity_target_ = mrs_lib::PublisherHandler<geometry_msgs::Twist>(nh_, "mavros_velocity_setpoint_out", 1);
+  ph_mavros_position_target_  = mrs_lib::PublisherHandler<mavros_msgs::PositionTarget>(nh_, "mavros_position_setpoint_out", 1);
+  ph_mavros_velocity_target_  = mrs_lib::PublisherHandler<geometry_msgs::Twist>(nh_, "mavros_velocity_setpoint_out", 1);
+      
+  pub_left_usv_thrust_cmd_    = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "left_usv_thrust_cmd_out", 1);
+  pub_right_usv_thrust_cmd_   = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "right_usv_thrust_cmd_out", 1);
+  pub_left_usv_thrust_angle_  = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "left_usv_thrust_angle_out", 1);
+  pub_right_usv_thrust_angle_ = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "right_usv_thrust_angle_out", 1);
 
   // | ----------------------- transformer ---------------------- |
   transformer_ = mrs_lib::Transformer(nh_, "UavUsvController");
@@ -337,8 +349,24 @@ mrs_msgs::HwApiCapabilities MrsUsvArduroverApi::getCapabilities() {
 bool MrsUsvArduroverApi::callbackActuatorCmd([[maybe_unused]] const mrs_msgs::HwApiActuatorCmd::ConstPtr msg) {
 
   ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting actuator cmd");
+  
+  if (!_capabilities_.accepts_actuator_cmd) {
+    ROS_ERROR("[%s]: the actuator input is not enabled in the config file", node_name.c_str());
+    return false;
+  }
+  std_msgs::Float32 right_thurst_cmd, left_thurst_cmd, right_thurst_angle, left_thurst_angle;
+  
+  left_thurst_cmd.data    = msg->motors[0]; 
+  right_thurst_cmd.data   = msg->motors[1];
+  left_thurst_angle.data  = msg->motors[2];
+  right_thurst_angle.data = msg->motors[3];
+    
+  pub_left_usv_thrust_cmd_.publish(left_thurst_cmd);
+  pub_right_usv_thrust_cmd_.publish(right_thurst_cmd); 
+  pub_left_usv_thrust_angle_.publish(left_thurst_angle);
+  pub_right_usv_thrust_angle_.publish(right_thurst_angle);
 
-  return false;
+  return true;
 }
 
 //}
