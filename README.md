@@ -2,7 +2,8 @@
 
 [MRS HW Api](https://github.com/ctu-mrs/mrs_uav_hw_api) plugin for interfacing the [UAV Core](https://github.com/ctu-mrs/mrs_uav_core) with the ArduPilot Rover for BlueBoat.
 
-![Develop branch](https://github.com/github/docs/actions/workflows/ros_build_test.yml/badge.svg?branch=develop)
+![Master branch]([github novakfi8 mrs_usv_ardurover_api actions workflows ros_build_test yml badge svg branch develop)](https://github.com/novakfi8/mrs_usv_ardurover_api/actions/workflows/ros_build_test.yml/badge.svg?branch=master))
+![Develop branch]([github novakfi8 mrs_usv_ardurover_api actions workflows ros_build_test yml badge svg branch develop)](https://github.com/novakfi8/mrs_usv_ardurover_api/actions/workflows/ros_build_test.yml/badge.svg?branch=develop))
 
 > :warning: **Attention please: This README is outdated.**
 >
