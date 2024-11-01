@@ -17,8 +17,6 @@ jobs:
   build_amd64:
     runs-on: ubuntu-20.04
 
-    env:
-
     steps:
 
       - uses: actions/checkout@v3
@@ -46,9 +44,7 @@ jobs:
   build_arm64:
 
     runs-on: ubuntu-20.04
-
-    env:
-
+    
     steps:
       - uses: actions/checkout@v3
         with:
@@ -91,7 +87,12 @@ jobs:
           # The shell to run commands with in the container
           shell: /bin/sh
 
+          install: |
+            apt-get update -q -y
+            apt-get upgrade -q -y
+
           # Produce a binary artifact and place it in the mounted volume
           run: |
             git config --global --add safe.directory "*"
             /tmp/repository/.ci_scripts/package_build/build_package.sh /tmp/repository /tmp/artifacts
+
