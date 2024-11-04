@@ -17,10 +17,13 @@
 #include <mrs_lib/subscribe_handler.h>
 #include <mrs_lib/service_client_handler.h>
 #include <mrs_lib/gps_conversions.h>
+#include <mrs_lib/transformer.h>
 
 #include <std_msgs/Float64.h>
+#include <std_msgs/Float32.h>
 
 #include <geometry_msgs/QuaternionStamped.h>
+#include <geometry_msgs/Twist.h>
 
 #include <mavros_msgs/AttitudeTarget.h>
 #include <mavros_msgs/CommandLong.h>
@@ -29,6 +32,7 @@
 #include <mavros_msgs/RCIn.h>
 #include <mavros_msgs/Altitude.h>
 #include <mavros_msgs/ActuatorControl.h>
+#include <mavros_msgs/PositionTarget.h>
 
 //}
 
@@ -42,15 +46,15 @@
 
 //}
 
-namespace mrs_uav_px4_api
+namespace mrs_usv_ardurover_api
 {
 
-/* class MrsUavPx4Api //{ */
+/* class MrsUsvArduroverApi //{ */
 
-class MrsUavPx4Api : public mrs_uav_hw_api::MrsUavHwApi {
+class MrsUsvArduroverApi : public mrs_uav_hw_api::MrsUavHwApi {
 
 public:
-  ~MrsUavPx4Api(){};
+  ~MrsUsvArduroverApi(){};
 
   void initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers);
 
@@ -150,6 +154,13 @@ private:
 
   mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>  ph_mavros_attitude_target_;
   mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl> ph_mavros_actuator_control_;
+  mrs_lib::PublisherHandler<mavros_msgs::PositionTarget>  ph_mavros_position_target_;
+  mrs_lib::PublisherHandler<geometry_msgs::Twist>         ph_mavros_velocity_target_;
+  
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_left_usv_thrust_cmd_;
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_right_usv_thrust_cmd_;
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_left_usv_thrust_angle_;
+  mrs_lib::PublisherHandler<std_msgs::Float32> pub_right_usv_thrust_angle_;
 
   // | ------------------------ variables ----------------------- |
 
@@ -158,6 +169,12 @@ private:
   std::atomic<bool> armed_     = false;
   std::atomic<bool> connected_ = false;
   std::mutex        mutex_status_;
+    
+  mrs_lib::Transformer transformer_;
+  std::mutex           transformer_mutex;
+  
+  bool position_cmd_map = false;
+  std::string       node_name = "MrsUsvArduroverApi";
 };
 
 //}
@@ -168,7 +185,7 @@ private:
 
 /* initialize() //{ */
 
-void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers) {
+void MrsUsvArduroverApi::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<mrs_uav_hw_api::CommonHandlers_t> common_handlers) {
 
   ros::NodeHandle nh_(parent_nh);
 
@@ -178,7 +195,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   _body_frame_name_  = common_handlers->getBodyFrameName();
   _world_frame_name_ = common_handlers->getWorldFrameName();
 
-  _capabilities_.api_name = "Px4Api";
+  _capabilities_.api_name = "ArduroverApi";
 
   // | ------------------- loading parameters ------------------- |
 
@@ -196,6 +213,9 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   param_loader.loadParam("inputs/control_group", (bool&)_capabilities_.accepts_control_group_cmd);
   param_loader.loadParam("inputs/attitude_rate", (bool&)_capabilities_.accepts_attitude_rate_cmd);
   param_loader.loadParam("inputs/attitude", (bool&)_capabilities_.accepts_attitude_cmd);
+  param_loader.loadParam("inputs/position", (bool&)_capabilities_.accepts_position_cmd);
+  param_loader.loadParam("inputs/velocity_hdg_rate", (bool&)_capabilities_.accepts_velocity_hdg_rate_cmd);
+  param_loader.loadParam("inputs/actuator", (bool&)_capabilities_.accepts_actuator_cmd);
 
   param_loader.loadParam("outputs/distance_sensor", (bool&)_capabilities_.produces_distance_sensor);
   param_loader.loadParam("outputs/gnss", (bool&)_capabilities_.produces_gnss);
@@ -212,9 +232,11 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   param_loader.loadParam("outputs/velocity", (bool&)_capabilities_.produces_velocity);
   param_loader.loadParam("outputs/angular_velocity", (bool&)_capabilities_.produces_angular_velocity);
   param_loader.loadParam("outputs/odometry", (bool&)_capabilities_.produces_odometry);
+  
+  param_loader.loadParam("position_cmd_map", (bool&)position_cmd_map);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[MrsUavPx4Api]: Could not load all parameters!");
+    ROS_ERROR("[MrsUsvArduroverApi]: Could not load all parameters!");
     ros::shutdown();
   }
 
@@ -227,7 +249,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
 
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh_;
-  shopts.node_name          = "MrsHwPx4Api";
+  shopts.node_name          = "MrsHwArduroverApi";
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -235,43 +257,54 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   if (_simulation_) {
-    sh_ground_truth_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "ground_truth_in", &MrsUavPx4Api::callbackGroundTruth, this);
+    sh_ground_truth_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "ground_truth_in", &MrsUsvArduroverApi::callbackGroundTruth, this);
   }
 
   if (!_simulation_) {
-    sh_rtk_ = mrs_lib::SubscribeHandler<mrs_modules_msgs::Bestpos>(shopts, "rtk_in", &MrsUavPx4Api::callbackRTK, this);
+    sh_rtk_ = mrs_lib::SubscribeHandler<mrs_modules_msgs::Bestpos>(shopts, "rtk_in", &MrsUsvArduroverApi::callbackRTK, this);
   }
 
-  sh_mavros_state_ = mrs_lib::SubscribeHandler<mavros_msgs::State>(shopts, "mavros_state_in", ros::Duration(0.05), &MrsUavPx4Api::timeoutMavrosState, this,
-                                                                   &MrsUavPx4Api::callbackMavrosState, this);
+  sh_mavros_state_ = mrs_lib::SubscribeHandler<mavros_msgs::State>(shopts, "mavros_state_in", ros::Duration(0.05), &MrsUsvArduroverApi::timeoutMavrosState, this,
+                                                                   &MrsUsvArduroverApi::callbackMavrosState, this);
 
-  sh_mavros_odometry_local_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_local_position_in", &MrsUavPx4Api::callbackOdometryLocal, this);
+  sh_mavros_odometry_local_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_local_position_in", &MrsUsvArduroverApi::callbackOdometryLocal, this);
 
-  sh_mavros_gps_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, "mavros_global_position_in", &MrsUavPx4Api::callbackNavsatFix, this);
+  sh_mavros_gps_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, "mavros_global_position_in", &MrsUsvArduroverApi::callbackNavsatFix, this);
 
-  sh_mavros_distance_sensor_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, "mavros_garmin_in", &MrsUavPx4Api::callbackDistanceSensor, this);
+  sh_mavros_distance_sensor_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, "mavros_garmin_in", &MrsUsvArduroverApi::callbackDistanceSensor, this);
 
-  sh_mavros_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, "mavros_imu_in", &MrsUavPx4Api::callbackImu, this);
+  sh_mavros_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, "mavros_imu_in", &MrsUsvArduroverApi::callbackImu, this);
 
-  sh_mavros_magnetometer_heading_ = mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, "mavros_magnetometer_in", &MrsUavPx4Api::callbackMagnetometer, this);
+  sh_mavros_magnetometer_heading_ = mrs_lib::SubscribeHandler<std_msgs::Float64>(shopts, "mavros_magnetometer_in", &MrsUsvArduroverApi::callbackMagnetometer, this);
 
   sh_mavros_magnetic_field_ =
-      mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>(shopts, "mavros_magnetic_field_in", &MrsUavPx4Api::callbackMagneticField, this);
+      mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>(shopts, "mavros_magnetic_field_in", &MrsUsvArduroverApi::callbackMagneticField, this);
 
-  sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, "mavros_rc_in", &MrsUavPx4Api::callbackRC, this);
+  sh_mavros_rc_ = mrs_lib::SubscribeHandler<mavros_msgs::RCIn>(shopts, "mavros_rc_in", &MrsUsvArduroverApi::callbackRC, this);
 
-  sh_mavros_altitude_ = mrs_lib::SubscribeHandler<mavros_msgs::Altitude>(shopts, "mavros_altitude_in", &MrsUavPx4Api::callbackAltitude, this);
+  sh_mavros_altitude_ = mrs_lib::SubscribeHandler<mavros_msgs::Altitude>(shopts, "mavros_altitude_in", &MrsUsvArduroverApi::callbackAltitude, this);
 
-  sh_mavros_battery_ = mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>(shopts, "mavros_battery_in", &MrsUavPx4Api::callbackBattery, this);
+  sh_mavros_battery_ = mrs_lib::SubscribeHandler<sensor_msgs::BatteryState>(shopts, "mavros_battery_in", &MrsUsvArduroverApi::callbackBattery, this);
 
   // | ----------------------- publishers ----------------------- |
 
   ph_mavros_attitude_target_  = mrs_lib::PublisherHandler<mavros_msgs::AttitudeTarget>(nh_, "mavros_attitude_setpoint_out", 1);
   ph_mavros_actuator_control_ = mrs_lib::PublisherHandler<mavros_msgs::ActuatorControl>(nh_, "mavros_actuator_control_out", 1);
+  ph_mavros_position_target_  = mrs_lib::PublisherHandler<mavros_msgs::PositionTarget>(nh_, "mavros_position_setpoint_out", 1);
+  ph_mavros_velocity_target_  = mrs_lib::PublisherHandler<geometry_msgs::Twist>(nh_, "mavros_velocity_setpoint_out", 1);
+      
+  pub_left_usv_thrust_cmd_    = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "left_usv_thrust_cmd_out", 1);
+  pub_right_usv_thrust_cmd_   = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "right_usv_thrust_cmd_out", 1);
+  pub_left_usv_thrust_angle_  = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "left_usv_thrust_angle_out", 1);
+  pub_right_usv_thrust_angle_ = mrs_lib::PublisherHandler<std_msgs::Float32>(nh_, "right_usv_thrust_angle_out", 1);
+
+  // | ----------------------- transformer ---------------------- |
+  transformer_ = mrs_lib::Transformer(nh_, "UavUsvController");
+  transformer_.retryLookupNewest(true);
 
   // | ----------------------- finish init ---------------------- |
 
-  ROS_INFO("[MrsUavPx4Api]: initialized");
+  ROS_INFO("[MrsUsvArduroverApi]: initialized");
 
   is_initialized_ = true;
 }
@@ -280,7 +313,7 @@ void MrsUavPx4Api::initialize(const ros::NodeHandle& parent_nh, std::shared_ptr<
 
 /* getStatus() //{ */
 
-mrs_msgs::HwApiStatus MrsUavPx4Api::getStatus() {
+mrs_msgs::HwApiStatus MrsUsvArduroverApi::getStatus() {
 
   mrs_msgs::HwApiStatus status;
 
@@ -302,7 +335,7 @@ mrs_msgs::HwApiStatus MrsUavPx4Api::getStatus() {
 
 /* getCapabilities() //{ */
 
-mrs_msgs::HwApiCapabilities MrsUavPx4Api::getCapabilities() {
+mrs_msgs::HwApiCapabilities MrsUsvArduroverApi::getCapabilities() {
 
   _capabilities_.stamp = ros::Time::now();
 
@@ -313,23 +346,39 @@ mrs_msgs::HwApiCapabilities MrsUavPx4Api::getCapabilities() {
 
 /* callbackControlActuatorCmd() //{ */
 
-bool MrsUavPx4Api::callbackActuatorCmd([[maybe_unused]] const mrs_msgs::HwApiActuatorCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackActuatorCmd([[maybe_unused]] const mrs_msgs::HwApiActuatorCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting actuator cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting actuator cmd");
+  
+  if (!_capabilities_.accepts_actuator_cmd) {
+    ROS_ERROR("[%s]: the actuator input is not enabled in the config file", node_name.c_str());
+    return false;
+  }
+  std_msgs::Float32 right_thurst_cmd, left_thurst_cmd, right_thurst_angle, left_thurst_angle;
+  
+  left_thurst_cmd.data    = msg->motors[0]; 
+  right_thurst_cmd.data   = msg->motors[1];
+  left_thurst_angle.data  = msg->motors[2];
+  right_thurst_angle.data = msg->motors[3];
+    
+  pub_left_usv_thrust_cmd_.publish(left_thurst_cmd);
+  pub_right_usv_thrust_cmd_.publish(right_thurst_cmd); 
+  pub_left_usv_thrust_angle_.publish(left_thurst_angle);
+  pub_right_usv_thrust_angle_.publish(right_thurst_angle);
 
-  return false;
+  return true;
 }
 
 //}
 
 /* callbackControlGroupCmd() //{ */
 
-bool MrsUavPx4Api::callbackControlGroupCmd(const mrs_msgs::HwApiControlGroupCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackControlGroupCmd(const mrs_msgs::HwApiControlGroupCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting control group cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting control group cmd");
 
   if (!_capabilities_.accepts_control_group_cmd) {
-    ROS_ERROR("[MrsUavPx4Api]: the control group input is not enabled in the config file");
+    ROS_ERROR("[MrsUsvArduroverApi]: the control group input is not enabled in the config file");
     return false;
   }
 
@@ -352,12 +401,12 @@ bool MrsUavPx4Api::callbackControlGroupCmd(const mrs_msgs::HwApiControlGroupCmd:
 
 /* callbackAttitudeRateCmd() //{ */
 
-bool MrsUavPx4Api::callbackAttitudeRateCmd(const mrs_msgs::HwApiAttitudeRateCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackAttitudeRateCmd(const mrs_msgs::HwApiAttitudeRateCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude rate cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting attitude rate cmd");
 
   if (!_capabilities_.accepts_attitude_rate_cmd) {
-    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: attitude rate input is not enabled in the config file");
+    ROS_ERROR_THROTTLE(1.0, "[MrsUsvArduroverApi]: attitude rate input is not enabled in the config file");
     return false;
   }
 
@@ -380,12 +429,12 @@ bool MrsUavPx4Api::callbackAttitudeRateCmd(const mrs_msgs::HwApiAttitudeRateCmd:
 
 /* callbackAttitudeCmd() //{ */
 
-bool MrsUavPx4Api::callbackAttitudeCmd(const mrs_msgs::HwApiAttitudeCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackAttitudeCmd(const mrs_msgs::HwApiAttitudeCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting attitude cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting attitude cmd");
 
   if (!_capabilities_.accepts_attitude_cmd) {
-    ROS_ERROR_THROTTLE(1.0, "[MrsUavPx4Api]: attitude input is not enabled in the config file");
+    ROS_ERROR_THROTTLE(1.0, "[MrsUsvArduroverApi]: attitude input is not enabled in the config file");
     return false;
   }
 
@@ -412,9 +461,9 @@ bool MrsUavPx4Api::callbackAttitudeCmd(const mrs_msgs::HwApiAttitudeCmd::ConstPt
 
 /* callbackAccelerationHdgRateCmd() //{ */
 
-bool MrsUavPx4Api::callbackAccelerationHdgRateCmd([[maybe_unused]] const mrs_msgs::HwApiAccelerationHdgRateCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackAccelerationHdgRateCmd([[maybe_unused]] const mrs_msgs::HwApiAccelerationHdgRateCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration+hdg rate cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting acceleration+hdg rate cmd");
 
   return false;
 }
@@ -423,9 +472,9 @@ bool MrsUavPx4Api::callbackAccelerationHdgRateCmd([[maybe_unused]] const mrs_msg
 
 /* callbackAccelerationHdgCmd() //{ */
 
-bool MrsUavPx4Api::callbackAccelerationHdgCmd([[maybe_unused]] const mrs_msgs::HwApiAccelerationHdgCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackAccelerationHdgCmd([[maybe_unused]] const mrs_msgs::HwApiAccelerationHdgCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting acceleration+hdg cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting acceleration+hdg cmd");
 
   return false;
 }
@@ -434,20 +483,37 @@ bool MrsUavPx4Api::callbackAccelerationHdgCmd([[maybe_unused]] const mrs_msgs::H
 
 /* callbackVelocityHdgRateCmd() //{ */
 
-bool MrsUavPx4Api::callbackVelocityHdgRateCmd([[maybe_unused]] const mrs_msgs::HwApiVelocityHdgRateCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackVelocityHdgRateCmd([[maybe_unused]] const mrs_msgs::HwApiVelocityHdgRateCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity+hdg rate cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting velocity+hdg rate cmd");
 
-  return false;
+  if (!_capabilities_.accepts_velocity_hdg_rate_cmd) {
+    ROS_ERROR("[%s]: the velocity and heading rate input is not enabled in the config file", node_name.c_str());
+    return false;
+  }
+   
+  // fill position target command
+  geometry_msgs::Twist velocity_cmd;
+
+  velocity_cmd.linear.x = msg->velocity.x;
+  velocity_cmd.linear.y = 0;
+  velocity_cmd.linear.z = 0;
+  velocity_cmd.angular.x = 0;
+  velocity_cmd.angular.y = 0;
+  velocity_cmd.angular.z = msg->heading_rate;
+ 
+  ph_mavros_velocity_target_.publish(velocity_cmd);
+
+  return true;
 }
 
 //}
 
 /* callbackVelocityHdgCmd() //{ */
 
-bool MrsUavPx4Api::callbackVelocityHdgCmd([[maybe_unused]] const mrs_msgs::HwApiVelocityHdgCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackVelocityHdgCmd([[maybe_unused]] const mrs_msgs::HwApiVelocityHdgCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting velocity+hdg cmd");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting velocity+hdg cmd");
 
   return false;
 }
@@ -456,25 +522,90 @@ bool MrsUavPx4Api::callbackVelocityHdgCmd([[maybe_unused]] const mrs_msgs::HwApi
 
 /* callbackPositionCmd() //{ */
 
-bool MrsUavPx4Api::callbackPositionCmd([[maybe_unused]] const mrs_msgs::HwApiPositionCmd::ConstPtr msg) {
+bool MrsUsvArduroverApi::callbackPositionCmd([[maybe_unused]] const mrs_msgs::HwApiPositionCmd::ConstPtr msg) {
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting position cmd");
+  ROS_INFO_ONCE("[%s]: getting position cmd", node_name.c_str());
+  
+  if (!_capabilities_.accepts_position_cmd) {
+    ROS_ERROR("[%s]: the position input is not enabled in the config file", node_name.c_str());
+    return false;
+  }
+      
+  // get transformation
+  mavros_msgs::PositionTarget position_target;
+  std::string output_frame = "map";
+  if(position_cmd_map)
+  {
+    output_frame = "map";
+    position_target.coordinate_frame = position_target.FRAME_LOCAL_NED;
+  } else{
+    output_frame = _uav_name_ + "/fcu";
+    position_target.coordinate_frame = position_target.FRAME_BODY_NED;
+  }
 
-  return false;
+  std::optional<geometry_msgs::TransformStamped> tf_opt;
+  {
+    std::scoped_lock lock(transformer_mutex);
+    tf_opt = transformer_.getTransform(msg->header.frame_id, output_frame);
+  }
+  if (!tf_opt) 
+  { 
+    ROS_ERROR("[%s]: Could not obtain transform from %s to %s", node_name.c_str(), msg->header.frame_id.c_str(), output_frame.c_str());
+    return false;
+  } 
+ 
+  // transform    
+  std::optional<geometry_msgs::PoseWithCovarianceStamped> pose_transformed;
+  geometry_msgs::PoseWithCovarianceStamped pose_to_transform;
+  pose_to_transform.header = msg->header;
+  pose_to_transform.pose.pose.position = msg->position;
+  pose_to_transform.pose.pose.orientation = mrs_lib::AttitudeConverter(0, 0, msg->heading);
+  {
+    std::scoped_lock lock(transformer_mutex);
+    pose_transformed = transformer_.transform(pose_to_transform, tf_opt.value());
+  }
+  if (!pose_transformed)
+  {
+    ROS_INFO("[%s]: Failed to transform pose, returning.", node_name.c_str());
+    return false;
+  }
+   
+  // get target heading
+  mrs_lib::AttitudeConverter attitude_converter(pose_transformed.value().pose.pose.orientation); 
+  double position_target_yaw = attitude_converter.getHeading();
+   
+  // fill position target command
+  position_target.header.stamp = ros::Time::now();
+ 
+  position_target.type_mask = 0;
+  position_target.type_mask += position_target.IGNORE_VX+position_target.IGNORE_VY+position_target.IGNORE_VZ;
+  position_target.type_mask += position_target.IGNORE_AFX+position_target.IGNORE_AFY+position_target.IGNORE_AFZ;
+  position_target.type_mask += position_target.IGNORE_YAW_RATE;
+  position_target.type_mask += position_target.IGNORE_YAW;
+
+  position_target.position.x = pose_transformed.value().pose.pose.position.x;
+  position_target.position.y = pose_transformed.value().pose.pose.position.y;
+  position_target.position.z = pose_transformed.value().pose.pose.position.z;
+  position_target.yaw = position_target_yaw;
+ 
+  // publish position target command
+  ph_mavros_position_target_.publish(position_target);
+  
+  return true;
 }
 
 //}
 
 /* callbackTrackerCmd() //{ */
 
-void MrsUavPx4Api::callbackTrackerCmd([[maybe_unused]] const mrs_msgs::TrackerCommand::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackTrackerCmd([[maybe_unused]] const mrs_msgs::TrackerCommand::ConstPtr msg) {
 }
 
 //}
 
 /* callbackArming() //{ */
 
-std::tuple<bool, std::string> MrsUavPx4Api::callbackArming([[maybe_unused]] const bool& request) {
+std::tuple<bool, std::string> MrsUsvArduroverApi::callbackArming([[maybe_unused]] const bool& request) {
 
   std::stringstream ss;
 
@@ -492,23 +623,25 @@ std::tuple<bool, std::string> MrsUavPx4Api::callbackArming([[maybe_unused]] cons
   srv_out.request.param6 = 0;
   srv_out.request.param7 = 0;
 
-  ROS_INFO("[Px4Api]: calling for %s", request ? "arming" : "disarming");
+  /* ss << "calling for " << (request ? "arming" : "disarming") << " resulted in failure: '" << srv_out.response.result << "'"; */
+  /* ROS_INFO_STREAM_THROTTLE(1.0, "[" << node_name.c_str() << "]: " << ss.str()); */
+  /* return {true, ss.str()}; */
 
   if (sch_mavros_command_long_.call(srv_out)) {
 
     if (srv_out.response.success) {
 
       ss << "service call for " << (request ? "arming" : "disarming") << " was successful";
-      ROS_INFO_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
+      ROS_INFO_STREAM_THROTTLE(1.0, "[" << "]: " << ss.str());
 
     } else {
       ss << "service call for " << (request ? "arming" : "disarming") << " failed";
-      ROS_ERROR_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
+      ROS_ERROR_STREAM_THROTTLE(1.0, "[" << node_name.c_str() << "]: " << ss.str());
     }
 
   } else {
     ss << "calling for " << (request ? "arming" : "disarming") << " resulted in failure: '" << srv_out.response.result << "'";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[Px4Api]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[" << node_name.c_str() << "]: " << ss.str());
   }
 
   return {srv_out.response.success, ss.str()};
@@ -518,12 +651,19 @@ std::tuple<bool, std::string> MrsUavPx4Api::callbackArming([[maybe_unused]] cons
 
 /* callbackOffboard() //{ */
 
-std::tuple<bool, std::string> MrsUavPx4Api::callbackOffboard(void) {
+std::tuple<bool, std::string> MrsUsvArduroverApi::callbackOffboard(void) {
+
+  /* ROS_INFO("[%s]: callback offboard", node_name.c_str()); */
+  
+  /* std::stringstream ss; */
+  /* ss << "switched to offboard mode"; */
+
+  /* return {true, ss.str()}; */
 
   mavros_msgs::SetMode srv;
 
   srv.request.base_mode   = 0;
-  srv.request.custom_mode = "OFFBOARD";
+  srv.request.custom_mode = "GUIDED";
 
   bool res = sch_mavros_mode_.call(srv);
 
@@ -533,7 +673,7 @@ std::tuple<bool, std::string> MrsUavPx4Api::callbackOffboard(void) {
 
     ss << "Service call for offboard failed!";
 
-    ROS_ERROR_THROTTLE(1.0, "[Px4Api]: %s", ss.str().c_str());
+    ROS_ERROR_THROTTLE(1.0, "[%s]: %s", node_name.c_str(), ss.str().c_str());
     return {false, ss.str()};
 
   } else {
@@ -542,7 +682,7 @@ std::tuple<bool, std::string> MrsUavPx4Api::callbackOffboard(void) {
 
       ss << "service call for offboard failed, returned " << srv.response.mode_sent;
 
-      ROS_WARN_THROTTLE(1.0, "[Px4Api]: %s", ss.str().c_str());
+      ROS_WARN_THROTTLE(1.0, "[%s]: %s", node_name.c_str(), ss.str().c_str());
 
       return {false, ss.str()};
 
@@ -561,7 +701,7 @@ std::tuple<bool, std::string> MrsUavPx4Api::callbackOffboard(void) {
 
 /* timeoutMavrosState() //{ */
 
-void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string& topic, const ros::Time& last_msg) {
+void MrsUsvArduroverApi::timeoutMavrosState([[maybe_unused]] const std::string& topic, const ros::Time& last_msg) {
 
   if (!is_initialized_) {
     return;
@@ -584,14 +724,14 @@ void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string& topic,
       mode_      = "";
     }
 
-    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: Have not received Mavros state for more than '%.3f s'", time.toSec());
+    ROS_WARN_THROTTLE(1.0, "[MrsUsvArduroverApi]: Have not received Mavros state for more than '%.3f s'", time.toSec());
 
   } else {
 
-    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
-    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
-    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
-    ROS_WARN_THROTTLE(1.0, "[MrsUavPx4Api]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
+    ROS_WARN_THROTTLE(1.0, "[MrsUsvArduroverApi]: Not recieving Mavros state message for '%.3f s'! Setup the PixHawk SD card!!", time.toSec());
+    ROS_WARN_THROTTLE(1.0, "[MrsUsvArduroverApi]: This could be also caused by the not being PixHawk booted properly due to, e.g., antispark connector jerkyness.");
+    ROS_WARN_THROTTLE(1.0, "[MrsUsvArduroverApi]: The Mavros state should be supplied at 100 Hz to provided fast refresh rate on the state of the OFFBOARD mode.");
+    ROS_WARN_THROTTLE(1.0, "[MrsUsvArduroverApi]: If missing, the UAV could be disarmed by safety routines while not knowing it has switched to the MANUAL mode.");
   }
 }
 
@@ -599,7 +739,7 @@ void MrsUavPx4Api::timeoutMavrosState([[maybe_unused]] const std::string& topic,
 
 /* RCChannelToRange() //{ */
 
-double MrsUavPx4Api::RCChannelToRange(const double& rc_value) {
+double MrsUsvArduroverApi::RCChannelToRange(const double& rc_value) {
 
   double tmp_0_to_1 = (rc_value - double(PWM_MIN)) / (double(PWM_RANGE));
 
@@ -618,18 +758,19 @@ double MrsUavPx4Api::RCChannelToRange(const double& rc_value) {
 
 /* //{ callbackMavrosState() */
 
-void MrsUavPx4Api::callbackMavrosState(const mavros_msgs::State::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackMavrosState(const mavros_msgs::State::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting Mavros state");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting Mavros state");
 
   {
     std::scoped_lock lock(mutex_status_);
 
-    offboard_  = msg->mode == "OFFBOARD";
+    offboard_  = msg->mode == "GUIDED";
+    /* offboard_  = msg->mode == "OFFBOARD"; */
     armed_     = msg->armed;
     connected_ = true;
     mode_      = msg->mode;
@@ -656,13 +797,13 @@ void MrsUavPx4Api::callbackMavrosState(const mavros_msgs::State::ConstPtr msg) {
 
 /* callbackOdometryLocal() //{ */
 
-void MrsUavPx4Api::callbackOdometryLocal(const nav_msgs::Odometry::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackOdometryLocal(const nav_msgs::Odometry::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting Mavros's local odometry");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting Mavros's local odometry");
 
   auto odom = msg;
 
@@ -729,13 +870,13 @@ void MrsUavPx4Api::callbackOdometryLocal(const nav_msgs::Odometry::ConstPtr msg)
 
 /* callbackNavsatFix() //{ */
 
-void MrsUavPx4Api::callbackNavsatFix(const sensor_msgs::NavSatFix::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackNavsatFix(const sensor_msgs::NavSatFix::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting NavSat fix");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting NavSat fix");
 
   if (_capabilities_.produces_gnss) {
 
@@ -747,13 +888,13 @@ void MrsUavPx4Api::callbackNavsatFix(const sensor_msgs::NavSatFix::ConstPtr msg)
 
 /* callbackDistanceSensor() //{ */
 
-void MrsUavPx4Api::callbackDistanceSensor(const sensor_msgs::Range::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackDistanceSensor(const sensor_msgs::Range::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting distnace sensor");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting distnace sensor");
 
   if (_capabilities_.produces_distance_sensor) {
 
@@ -765,13 +906,13 @@ void MrsUavPx4Api::callbackDistanceSensor(const sensor_msgs::Range::ConstPtr msg
 
 /* callbackImu() //{ */
 
-void MrsUavPx4Api::callbackImu(const sensor_msgs::Imu::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackImu(const sensor_msgs::Imu::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting IMU");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting IMU");
 
   if (_capabilities_.produces_imu) {
 
@@ -786,13 +927,13 @@ void MrsUavPx4Api::callbackImu(const sensor_msgs::Imu::ConstPtr msg) {
 
 /* callbackCompass() //{ */
 
-void MrsUavPx4Api::callbackMagnetometer(const std_msgs::Float64::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackMagnetometer(const std_msgs::Float64::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting magnetometer heading");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting magnetometer heading");
 
   if (_capabilities_.produces_magnetometer_heading) {
 
@@ -809,13 +950,13 @@ void MrsUavPx4Api::callbackMagnetometer(const std_msgs::Float64::ConstPtr msg) {
 
 /* callbackMagneticField() //{ */
 
-void MrsUavPx4Api::callbackMagneticField(const sensor_msgs::MagneticField::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackMagneticField(const sensor_msgs::MagneticField::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting magnetic field");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting magnetic field");
 
   if (_capabilities_.produces_magnetic_field) {
 
@@ -827,13 +968,13 @@ void MrsUavPx4Api::callbackMagneticField(const sensor_msgs::MagneticField::Const
 
 /* callbackRC() //{ */
 
-void MrsUavPx4Api::callbackRC(const mavros_msgs::RCIn::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackRC(const mavros_msgs::RCIn::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting RC");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting RC");
 
   if (_capabilities_.produces_rc_channels) {
 
@@ -853,13 +994,13 @@ void MrsUavPx4Api::callbackRC(const mavros_msgs::RCIn::ConstPtr msg) {
 
 /* callbackAltitude() //{ */
 
-void MrsUavPx4Api::callbackAltitude(const mavros_msgs::Altitude::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackAltitude(const mavros_msgs::Altitude::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting Altitude");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting Altitude");
 
   if (_capabilities_.produces_altitude) {
 
@@ -876,13 +1017,13 @@ void MrsUavPx4Api::callbackAltitude(const mavros_msgs::Altitude::ConstPtr msg) {
 
 /* callbackBattery() //{ */
 
-void MrsUavPx4Api::callbackBattery(const sensor_msgs::BatteryState::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackBattery(const sensor_msgs::BatteryState::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting battery");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting battery");
 
   if (_capabilities_.produces_battery_state) {
 
@@ -894,13 +1035,13 @@ void MrsUavPx4Api::callbackBattery(const sensor_msgs::BatteryState::ConstPtr msg
 
 /* callbackGroundTruth() //{ */
 
-void MrsUavPx4Api::callbackGroundTruth(const nav_msgs::Odometry::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackGroundTruth(const nav_msgs::Odometry::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting ground truth");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting ground truth");
 
   auto odom = msg;
 
@@ -913,7 +1054,7 @@ void MrsUavPx4Api::callbackGroundTruth(const nav_msgs::Odometry::ConstPtr msg) {
     // if frame_id is "/world", "world", "/map" or "map" gazebo reports velocitites in global world frame so we need to transform them to body frame
     if (msg->header.frame_id == "/world" || msg->header.frame_id == "world" || msg->header.frame_id == "/map" || msg->header.frame_id == "map") {
 
-      ROS_INFO_ONCE("[MrsUavPx4Api]: transforming Gazebo ground truth velocities from world to body frame");
+      ROS_INFO_ONCE("[MrsUsvArduroverApi]: transforming Gazebo ground truth velocities from world to body frame");
 
       Eigen::Matrix3d R = mrs_lib::AttitudeConverter(msg->pose.pose.orientation);
 
@@ -974,13 +1115,13 @@ void MrsUavPx4Api::callbackGroundTruth(const nav_msgs::Odometry::ConstPtr msg) {
 
 /* callbackRTK() //{ */
 
-void MrsUavPx4Api::callbackRTK(const mrs_modules_msgs::Bestpos::ConstPtr msg) {
+void MrsUsvArduroverApi::callbackRTK(const mrs_modules_msgs::Bestpos::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[MrsUavPx4Api]: getting rtk");
+  ROS_INFO_ONCE("[MrsUsvArduroverApi]: getting rtk");
 
   mrs_msgs::RtkGps rtk_msg_out;
 
@@ -1020,4 +1161,4 @@ void MrsUavPx4Api::callbackRTK(const mrs_modules_msgs::Bestpos::ConstPtr msg) {
 }  // namespace mrs_uav_px4_api
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(mrs_uav_px4_api::MrsUavPx4Api, mrs_uav_hw_api::MrsUavHwApi)
+PLUGINLIB_EXPORT_CLASS(mrs_usv_ardurover_api::MrsUsvArduroverApi, mrs_uav_hw_api::MrsUavHwApi)

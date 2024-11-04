@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(mrs_uav_px4_api)
+project(mrs_usv_ardurover_api)
 
 set(CATKIN_DEPENDENCIES
   cmake_modules
@@ -26,7 +26,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(LIBRARIES
-  MrsUavPx4Api_Api
+  MrsUsvArduroverApi_Api
   )
 
 catkin_package(
@@ -40,16 +40,16 @@ include_directories(
 
 # Plugin
 
-add_library(MrsUavPx4Api_Api
+add_library(MrsUsvArduroverApi_Api
   src/api.cpp
   )
 
-add_dependencies(MrsUavPx4Api_Api
+add_dependencies(MrsUsvArduroverApi_Api
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   )
 
-target_link_libraries(MrsUavPx4Api_Api
+target_link_libraries(MrsUsvArduroverApi_Api
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
