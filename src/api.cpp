@@ -337,7 +337,7 @@ mrs_msgs::HwApiStatus MrsUsvArduroverApi::getStatus() {
 
 mrs_msgs::HwApiCapabilities MrsUsvArduroverApi::getCapabilities() {
 
-  _capabilities_.stamp = ros::Time::now();
+  _capabilities_.stamp = ros::Time::now()
 
   return _capabilities_;
 }
