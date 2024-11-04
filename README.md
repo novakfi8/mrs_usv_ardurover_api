@@ -4,7 +4,7 @@
 
 | Branch  | Build status                                                                                                                      |
 |---------|-----------------------------------------------------------------------------------------------------------------------------------|
-| Master  | ![Master branch](https://github.com/novakfi8/mrs_usv_ardurover_api/actions/workflows/ros_build_test.yml/badge.svg?branch=master)  |
+| Master  | ![Master branch](https://github.com/novakfi8/mrs_usv_ardurover_api/actions/workflows/ros_build_test.yml)  |
 | Develop | ![Master branch](https://github.com/novakfi8/mrs_usv_ardurover_api/actions/workflows/ros_build_test.yml/badge.svg?branch=develop) |
 
 > :warning: **Attention please: This README is outdated.**
