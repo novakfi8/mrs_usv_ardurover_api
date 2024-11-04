@@ -2,7 +2,7 @@ hw_interface_plugin: "mrs_usv_ardurover_api/Api"
 
 mavros_timeout: 5.0 # [s]
 
-position_cmd_map: true
+position_cmd_map: false
 
 simulated_rtk:
   utm_zone: "32T"
