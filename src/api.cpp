@@ -526,8 +526,6 @@ bool MrsUsvArduroverApi::callbackPositionCmd([[maybe_unused]] const mrs_msgs::Hw
 
   ROS_INFO_ONCE("[%s]: getting position cmd", node_name.c_str());
   
-  ROS_INFO("[%s]: getting position cmd", node_name.c_str());
-  
   if (!_capabilities_.accepts_position_cmd) {
     ROS_ERROR("[%s]: the position input is not enabled in the config file", node_name.c_str());
     return false;
@@ -578,7 +576,6 @@ bool MrsUsvArduroverApi::callbackPositionCmd([[maybe_unused]] const mrs_msgs::Hw
    
   // fill position target command
   position_target.header.stamp = ros::Time::now();
-  position_target.coordinate_frame = position_target.FRAME_LOCAL_NED;
  
   position_target.type_mask = 0;
   position_target.type_mask += position_target.IGNORE_VX+position_target.IGNORE_VY+position_target.IGNORE_VZ;
@@ -590,7 +587,8 @@ bool MrsUsvArduroverApi::callbackPositionCmd([[maybe_unused]] const mrs_msgs::Hw
   position_target.position.y = pose_transformed.value().pose.pose.position.y;
   position_target.position.z = pose_transformed.value().pose.pose.position.z;
   position_target.yaw = position_target_yaw;
-  
+ 
+  // publish position target command
   ph_mavros_position_target_.publish(position_target);
   
   return true;
