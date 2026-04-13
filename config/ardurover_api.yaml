@@ -1,35 +1,46 @@
-hw_interface_plugin: "mrs_usv_ardurover_api/Api"
+hw_interface_plugin: "mrs_usv_ardurover_api::MrsUsvArduroverApi"
+plugin:
+  mavros_timeout: 5.0 # [s]
+  mavros_passable_delay: 1.0 # [s]
+  # mavros_passable_delay: 0.05 # [s]
 
-mavros_timeout: 5.0 # [s]
+  position_cmd_map: false
+  
+  gnss:
+    utm_zone: "32T"
+    utm_x: 465710.758973
+    utm_y: 5249465.43086
+    amsl: 340.0
 
-position_cmd_map: false
+  # simulated_rtk:
+  #   utm_zone: "32T"
+  #   utm_x: 465710.758973
+  #   utm_y: 5249465.43086
+  #   amsl: 340.0
 
-simulated_rtk:
-  utm_zone: "32T"
-  utm_x: 465710.758973
-  utm_y: 5249465.43086
-  amsl: 340.0
+  input_mode:
+    position:      true
+    control_group: false
+    attitude_rate: false
+    attitude:      false
+    velocity_hdg_rate: false
+    actuator:      false
 
-inputs:
-  position:      true
-  control_group: false
-  attitude_rate: false
-  attitude:      false
-  velocity_hdg_rate: true
+  outputs:
+    distance_sensor:      false
+    gnss:                 true
+    gnss_status:          true
+    rtk:                  false # TODO implement RTK
+    imu:                  true
+    altitude:             true
+    magnetometer_heading: false
+    magnetic_field:       false
+    rc_channels:          false
+    battery_state:        true
+    position:             true
+    orientation:          true
+    velocity:             true
+    angular_velocity:     true
+    odometry:             true
+    ground_truth:         false
 
-outputs:
-  distance_sensor:      false
-  gnss:                 true
-  rtk:                  true
-  imu:                  true
-  altitude:             true
-  magnetometer_heading: true
-  magnetic_field:       true
-  rc_channels:          false
-  battery_state:        true
-  position:             true
-  orientation:          true
-  velocity:             true
-  angular_velocity:     true
-  odometry:             true
-  ground_truth:         true

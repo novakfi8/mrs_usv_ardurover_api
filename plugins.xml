@@ -1,5 +1,5 @@
-<library path="lib/libMrsUsvArduroverApi_Api">
-  <class name="mrs_usv_ardurover_api/Api" type="mrs_usv_ardurover_api::MrsUsvArduroverApi" base_class_type="mrs_uav_hw_api::MrsUavHwApi">
+<library path="MrsUsvArduroverApi_Api">
+  <class name="mrs_usv_ardurover_api::MrsUsvArduroverApi" type="mrs_usv_ardurover_api::MrsUsvArduroverApi" base_class_type="mrs_uav_hw_api::MrsUavHwApi">
     <description>ArduPilot Rover API module for the MRS UAV System</description>
   </class>
 </library>
