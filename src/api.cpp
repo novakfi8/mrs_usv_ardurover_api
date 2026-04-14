@@ -294,6 +294,12 @@ void MrsUsvArduroverApi::initialize(const rclcpp::Node::SharedPtr &node, std::sh
   
   common_handlers_->main_param_loader->loadParam("simulation", _simulation_);
   
+  std::string custom_config_file = "";
+  common_handlers_->main_param_loader->loadParam("custom_config", custom_config_file);
+  if (custom_config_file != "") {
+    local_param_loader.addYamlFile(custom_config_file);
+  }
+  
   if (!common_handlers_->main_param_loader->loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "Could not load all parameters!");
     error_publisher_->addOneshotError("Could not load all parameters!");
@@ -304,7 +310,7 @@ void MrsUsvArduroverApi::initialize(const rclcpp::Node::SharedPtr &node, std::sh
     RCLCPP_INFO(node_->get_logger(), "loading config file '%s'", config_file.c_str());
     local_param_loader.addYamlFile(config_file);
   }
-  
+    
   local_param_loader.loadParam("mavros_timeout", _mavros_timeout_);
   local_param_loader.loadParam("mavros_passable_delay", _mavros_passable_delay_);
   
