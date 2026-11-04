@@ -33,8 +33,8 @@ plugin:
     rtk:                  false # TODO implement RTK
     imu:                  true
     altitude:             true
-    magnetometer_heading: false
-    magnetic_field:       false
+    magnetometer_heading: true
+    magnetic_field:       true
     rc_channels:          false
     battery_state:        true
     position:             true
