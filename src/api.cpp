@@ -396,8 +396,10 @@ void MrsUsvArduroverApi::initialize(const rclcpp::Node::SharedPtr &node, std::sh
   init_subscriber_handler(this, sh_mavros_gps_, shopts, "~/mavros_global_position_in", &MrsUsvArduroverApi::callbackNavsatFix,
       &MrsUsvArduroverApi::timeoutGeneralTopic, error_type_t::not_receiving_gps, "Not receiving GPS data");
 
-  init_subscriber_handler(this, sh_mavros_distance_sensor_, shopts, "~/mavros_garmin_in", &MrsUsvArduroverApi::callbackDistanceSensor,
-                          &MrsUsvArduroverApi::timeoutGeneralTopic, error_type_t::not_receiving_distance_sensor, "Not receiving distance sensor data");
+  /* init_subscriber_handler(this, sh_mavros_distance_sensor_, shopts, "~/mavros_garmin_in", &MrsUsvArduroverApi::callbackDistanceSensor, */
+  /*                         &MrsUsvArduroverApi::timeoutGeneralTopic, error_type_t::not_receiving_distance_sensor, "Not receiving distance sensor data"); */
+  sh_mavros_distance_sensor_ =
+      mrs_lib::SubscriberHandler<sensor_msgs::msg::Range>(shopts, "~/mavros_garmin_in", &MrsUsvArduroverApi::callbackDistanceSensor, this);
 
   init_subscriber_handler(this, sh_mavros_imu_, shopts, "~/mavros_imu_in", &MrsUsvArduroverApi::callbackImu, &MrsUsvArduroverApi::timeoutGeneralTopic,
                           error_type_t::not_receiving_imu, "Not receiving IMU data");
